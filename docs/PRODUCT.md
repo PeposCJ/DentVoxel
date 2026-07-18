@@ -1,25 +1,24 @@
-# Producto y modelo abierto
+# Product and open-core model
 
-## Promesa
+## Promise
 
-“Abre una tomografía dental en segundos, sin instalar el visor del fabricante y sin
-subir datos del paciente.”
+“Open a dental scan in seconds, without installing the manufacturer's viewer and without
+uploading patient data.”
 
-## Qué permanece abierto
+## What remains open
 
-El cargador DICOM, MPR, herramientas básicas, render 3D, formatos y API de extensiones.
-La licencia MPL-2.0 obliga a publicar modificaciones de esos archivos, pero permite
-productos o módulos separados con otra licencia.
+The DICOM loader, MPR, basic tools, 3D rendering, supported formats, and extension API.
+MPL-2.0 requires modifications to those files to remain available while allowing
+separate products or modules to use another license.
 
-## Opciones de ingreso compatibles
+## Compatible revenue options
 
-- **Pro local:** ejecutable firmado, actualizaciones, soporte prioritario y flujos
-  avanzados por suscripción.
-- **Clínica:** integración PACS/DICOMweb, administración, auditoría y despliegue.
-- **Módulos regulados:** IA nerviosa, planificación y colaboración, con licencia
-  comercial independiente.
-- **Servicios:** instalación, formación, validación e integraciones.
+- **Local Pro:** signed desktop application, updates, priority support, and advanced workflows.
+- **Clinic:** PACS/DICOMweb integration, administration, auditing, and managed deployment.
+- **Regulated modules:** mandibular canal assistance, planning, and collaboration under
+  a separate commercial license and validation process.
+- **Services:** installation, training, validation, and custom integrations.
 
-No conviene cobrar por “poder abrir DICOM”; esa función debe ser la cuña abierta que
-genere adopción y confianza. El valor de pago está en ahorrar flujo de trabajo,
-colaborar, integrar y ofrecer funciones validadas.
+Opening DICOM should remain the accessible, open entry point that builds adoption and
+trust. Paid value should come from workflow savings, collaboration, integration,
+professional support, and properly validated advanced capabilities.

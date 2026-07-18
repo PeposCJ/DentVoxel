@@ -1,38 +1,41 @@
 # DentVoxel
 
-**Open-source dental CBCT and DICOM viewer. Fast, private and local-first.**
+**Open-source dental CBCT and DICOM viewer. Fast, private, and local-first.**
 
-Visor CBCT dental ligero, local-first y de código abierto. Abre una carpeta DICOM
-directamente en el navegador, construye el volumen en memoria y muestra cortes axial,
-coronal y sagital sincronizados junto con una reconstrucción 3D.
+DentVoxel opens a local DICOM folder directly in the browser, builds the volume in
+memory, and displays synchronized axial, coronal, and sagittal views alongside a 3D
+volume rendering. It is designed to give dental professionals a lightweight,
+vendor-neutral alternative to the large viewers distributed with individual scanners.
 
-> **Alfa técnica. No es todavía un dispositivo médico validado y no debe ser la única
-> base para diagnóstico o planificación clínica.**
+> **Technical alpha. DentVoxel is not a validated medical device and must not be the
+> sole basis for diagnosis, treatment planning, or clinical decisions.**
 
-## Funciones actuales
+## Current features
 
-- Apertura local de series DICOM Part 10, sin subir datos.
-- Selector local de estudios y series por metadatos DICOM, con separación de scouts y series incompatibles.
-- MPR de tres planos con crucetas sincronizadas.
-- Traslación y rotación de planos para cortes oblicuos.
-- Ventana/nivel, desplazamiento, zoom, scroll y recentrado.
-- Render volumétrico 3D con preset óseo.
-- Decodificación en Web Workers y códecs WebAssembly.
-- Aplicación web instalable y disponible sin conexión tras la primera carga.
+- Local DICOM Part 10 loading without uploading clinical files.
+- Study and series selection based on DICOM metadata.
+- Separation of localizers, scout views, auxiliary files, and incompatible series.
+- Synchronized axial, coronal, and sagittal MPR views.
+- Crosshair translation and rotation for oblique slices.
+- Window/level, pan, zoom, slice scrolling, and camera reset.
+- 3D volume rendering with a bone preset.
+- Web Worker decoding with WebAssembly codecs.
+- Installable PWA that remains available offline after its first load.
+- English and Spanish interface, with English as the default.
 
-## Ejecutar
+## Run locally
 
-Requisitos: Node.js 22 y pnpm 11.
+Requirements: Node.js 22 and pnpm 11.
 
 ```bash
 pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-Abre `http://localhost:5173`, pulsa **Abrir estudio** y elige la carpeta que contiene
-los cortes. También puedes arrastrar archivos DICOM al visor.
+Open `http://localhost:5173`, select **Open study**, and choose the folder containing
+the DICOM slices. A folder or its files can also be dropped onto the viewer.
 
-Para generar y comprobar la versión distribuible:
+Build and verify the distributable version:
 
 ```bash
 pnpm test
@@ -40,27 +43,29 @@ pnpm build
 pnpm preview
 ```
 
-## Privacidad
+## Privacy
 
-El MVP no tiene backend, cuentas ni telemetría. Los objetos `File`, metadatos y píxeles
-permanecen en memoria dentro del dispositivo. Los recursos de la interfaz también son
-locales; el visor no solicita tipografías externas.
+The MVP has no backend, user accounts, or telemetry. `File` objects, metadata, and
+decoded pixels remain in memory on the local device. Interface resources are bundled
+locally and the viewer does not request external fonts.
 
-No subas datos de pacientes al repositorio o a incidencias. Consulta [SECURITY.md](SECURITY.md).
+Do not upload patient studies, identifiable screenshots, or credentials to the
+repository or public issues. See [SECURITY.md](SECURITY.md).
 
-## Dirección del producto
+## Product direction
 
-- [Arquitectura](docs/ARCHITECTURE.md)
-- [Selección de estudios y series](docs/SERIES_SELECTION.md)
-- [Hoja de ruta clínica y técnica](docs/ROADMAP.md)
-- [Modelo abierto y comercial](docs/PRODUCT.md)
-- [Cómo contribuir](CONTRIBUTING.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Study and series selection](docs/SERIES_SELECTION.md)
+- [Clinical and technical roadmap](docs/ROADMAP.md)
+- [Open-core product model](docs/PRODUCT.md)
+- [Contributing](CONTRIBUTING.md)
 
-La siguiente prioridad no es IA: es probar compatibilidad con estudios anonimizados de
-varios fabricantes, elegir series correctamente y añadir panorámica dental curva.
+The next priority is interoperability rather than AI: validate anonymized studies from
+multiple manufacturers, improve series selection, and implement curved dental panoramic
+reformation.
 
-## Licencia
+## License
 
-MPL-2.0. Las mejoras al núcleo continúan abiertas; archivos y módulos separados pueden
-tener otra licencia. Esto permite una edición comunitaria sólida y funciones comerciales
-opcionales sin cerrar el visor básico.
+MPL-2.0. Improvements to the open core remain open, while separate modules may use
+another compatible license. This supports a strong community viewer and optional
+commercial functionality without closing the basic imaging workflow.

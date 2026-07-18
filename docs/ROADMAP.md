@@ -1,36 +1,39 @@
-# Hoja de ruta
+# Roadmap
 
-## Fase 0 — alfa técnica (actual)
+## Phase 0 — technical alpha
 
-- Abrir una carpeta local de cortes DICOM.
-- MPR axial, coronal y sagital sincronizado.
-- Cortes oblicuos mediante rotación de crucetas.
-- Ventana/nivel, pan, zoom, scroll y recentrado.
-- Render volumétrico 3D con preset óseo.
-- PWA local-first y compilación reproducible.
+- Open a local folder of DICOM slices.
+- Synchronized axial, coronal, and sagittal MPR.
+- Oblique slicing through crosshair rotation.
+- Window/level, pan, zoom, scrolling, and camera reset.
+- 3D volume rendering with a bone preset.
+- Local-first PWA with a reproducible production build.
+- English and Spanish interface.
 
-## Fase 1 — visor clínico confiable
+## Phase 1 — dependable clinical viewer
 
-- Agrupar y elegir estudio/serie en lugar de asumir una sola serie. Primera versión funcional completada; falta validación con estudios reales anonimizados y DICOMDIR.
-- Leer DICOMDIR, multiframe y reportar sintaxis no soportadas con claridad.
-- Presets dentales, mediciones lineales/angulares y exportación de capturas.
-- Curved planar reformation (panorámica dental) y cortes transversales del arco.
-- Pruebas con CBCT de múltiples fabricantes y una declaración de conformidad DICOM.
-- Límites de memoria, cancelación de carga y métricas locales de rendimiento.
+- Group and select studies and series instead of assuming a single series. The first
+  functional version is complete; validation with anonymized real-world studies and
+  DICOMDIR support remain pending.
+- Read DICOMDIR and multiframe objects and report unsupported transfer syntaxes clearly.
+- Add dental presets, linear/angular measurements, and screenshot export.
+- Implement curved planar reformation and cross-sectional views of the dental arch.
+- Test CBCT studies from multiple manufacturers and publish a DICOM conformance statement.
+- Add memory limits, loading cancellation, and local performance measurements.
 
-## Fase 2 — distribución
+## Phase 2 — distribution
 
-- Ejecutable Tauri firmado para Windows/macOS/Linux y asociación de archivos.
-- Actualizaciones firmadas, modo totalmente offline y soporte DICOMweb opcional.
-- Accesibilidad, internacionalización y manual de usuario.
+- Signed Tauri application for Windows, macOS, and Linux with file association.
+- Signed updates, fully offline mode, and optional DICOMweb support.
+- Accessibility, additional languages, and a user manual.
 
-## Fase 3 — módulos avanzados
+## Phase 3 — advanced modules
 
-- Segmentación asistida del canal mandibular con edición y confirmación humana.
-- Segmentación dental y planificación de implantes.
-- Inferencia local acelerada cuando el hardware lo permita.
-- Registro de modelo, dataset, versión y trazabilidad de cada resultado.
+- Clinician-editable mandibular canal assistance with explicit human confirmation.
+- Dental segmentation and implant planning.
+- Hardware-accelerated local inference where supported.
+- Traceability for model, dataset, version, and every generated result.
 
-La detección nerviosa se presentará como **asistencia**, nunca como verdad automática.
-Requiere dataset representativo, anotación experta, evaluación externa por fabricante,
-calibración de incertidumbre y una ruta regulatoria específica.
+Mandibular canal detection will be presented as **assistance**, never as automatic truth.
+It requires a representative dataset, expert annotation, external validation across
+manufacturers, uncertainty calibration, and a dedicated regulatory pathway.

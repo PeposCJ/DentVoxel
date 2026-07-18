@@ -1,11 +1,20 @@
-# Contribuir a DentVoxel
+# Contributing to DentVoxel
 
-Gracias por ayudar a construir un visor CBCT dental abierto. Antes de enviar cambios:
+Thank you for helping build a lightweight, private, and vendor-neutral dental imaging
+viewer.
 
-1. Abre una incidencia explicando el caso clínico y el comportamiento esperado.
-2. No adjuntes estudios identificables. Usa datos sintéticos o públicos anonimizados.
-3. Ejecuta `pnpm install`, `pnpm test` y `pnpm build`.
-4. Mantén el procesamiento local por defecto y documenta toda comunicación de red.
+## Development workflow
 
-Las contribuciones se publican bajo MPL-2.0. Antes de aceptar contribuciones externas
-importantes conviene adoptar un CLA que conserve la opción de licencias comerciales.
+1. Create a focused branch for one change.
+2. Keep clinical files, patient information, secrets, and generated dependencies out of Git.
+3. Add or update tests for behavioral changes.
+4. Run the required checks before opening a pull request:
+
+```bash
+pnpm test
+pnpm build
+```
+
+Pull requests should explain the user impact, technical decisions, verification steps,
+and any interoperability or safety limitations. Changes to the viewer core remain under
+MPL-2.0. Discuss large architectural changes before replacing established components.

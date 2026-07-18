@@ -1,64 +1,62 @@
-# Selección de estudios y series
+# Study and series selection
 
-## Alcance de la primera versión
+## First-version scope
 
-Al abrir una carpeta, DentVoxel examina localmente las cabeceras DICOM antes de crear
-un volumen. Agrupa cada instancia por `StudyInstanceUID` y `SeriesInstanceUID`, ordena
-los cortes por su posición física y presenta sólo las series compatibles como acciones
-de apertura. Cornerstone recibe exclusivamente los objetos `File` de la serie elegida.
+When a folder is opened, DentVoxel examines DICOM headers locally before creating a
+volume. It groups each instance by `StudyInstanceUID` and `SeriesInstanceUID`, orders
+slices by physical position, and enables opening only compatible volumetric series.
+Cornerstone receives exclusively the `File` objects from the selected series.
 
-El índice se procesa de forma secuencial para limitar picos de memoria. Primero intenta
-leer hasta 4 MiB de cada archivo y se detiene al encontrar `PixelData`; sólo reintenta
-con el archivo completo cuando una cabecera excepcionalmente grande lo requiere. El
-usuario puede cancelar entre archivos y también cancelar la preparación del volumen.
+Indexing is sequential to limit peak memory use. DentVoxel first reads up to 4 MiB from
+each file and stops at `PixelData`; it retries with the complete file only when an
+unusually large header requires it. The user can cancel between files and can also
+cancel volume preparation.
 
-## Clasificación
+## Classification
 
-- **Volumen:** al menos dos instancias monoframe con píxeles, geometría espacial,
-  dimensiones y espaciado coherentes, y una sintaxis decodificable por los códecs
-  incluidos en la versión instalada de Cornerstone.
-- **Localizador:** `ImageType` o la descripción contiene indicadores habituales como
-  `LOCALIZER`, `SCOUT`, `TOPOGRAM`, `SURVIEW` o `PROJECTION`. Se muestra por separado y
-  no se mezcla con el volumen.
-- **Incompatible:** multiframe, modalidad distinta de CT, geometría incompleta,
-  dimensiones/espaciado inconsistentes, una sola imagen o sintaxis no soportada. La
-  interfaz muestra una razón concreta sin intentar decodificar la serie.
-- **Ignorado:** DICOMDIR, auxiliares pequeños/ocultos, objetos sin píxeles, archivos no
-  DICOM y objetos sin los UID necesarios. Sólo se muestran conteos y motivos, no nombres
-  de archivo.
+- **Volume:** at least two single-frame instances with pixel data, spatial geometry,
+  consistent dimensions and spacing, and a transfer syntax supported by the bundled
+  Cornerstone codecs.
+- **Localizer:** `ImageType` or the series description contains a common indicator such
+  as `LOCALIZER`, `SCOUT`, `TOPOGRAM`, `SURVIEW`, or `PROJECTION`. The localizer remains
+  visible but is never mixed into the reconstructed volume.
+- **Incompatible:** multiframe data, a modality other than CT, incomplete geometry,
+  inconsistent dimensions or spacing, a single image, or an unsupported transfer
+  syntax. The interface explains the reason without attempting pixel decoding.
+- **Ignored:** DICOMDIR, small or hidden auxiliary files, objects without pixel data,
+  non-DICOM files, and objects missing the required UIDs. The interface shows counts
+  and reasons, but not file names.
 
-La lista de sintaxis aceptadas refleja los decodificadores incluidos actualmente:
-uncompressed little/big endian, JPEG baseline/lossless seleccionado, JPEG-LS, JPEG 2000,
-HTJ2K y RLE. Una sintaxis fuera de esta lista permanece visible como incompatibilidad,
-con su UID, en vez de fallar durante la carga.
+The supported syntax list reflects the currently bundled decoders: uncompressed little
+and big endian, selected baseline and lossless JPEG processes, JPEG-LS, JPEG 2000,
+HTJ2K, and RLE. A syntax outside this list remains visible as an incompatibility with
+its UID instead of failing later during volume loading.
 
-## Metadatos y privacidad
+## Metadata and privacy
 
-La interfaz utiliza únicamente descripción y fecha del estudio, fabricante, descripción
-y modalidad de la serie, número de cortes, dimensiones y espaciado de vóxel. No accede
-ni muestra `PatientName`, `PatientID`, fecha de nacimiento u otros campos de identidad.
-Los metadatos, archivos y píxeles permanecen en memoria en el dispositivo; no se añade
-persistencia, telemetría ni comunicación de red.
+The interface uses only study description and date, manufacturer, series description
+and modality, slice count, dimensions, and voxel spacing. It does not access or display
+`PatientName`, `PatientID`, date of birth, or other identity fields. Metadata, files,
+and pixels remain in memory on the device; this feature adds no persistence, telemetry,
+or network communication.
 
-## Decisiones y límites conocidos
+## Decisions and known limitations
 
-- Los UID son las únicas claves de agrupación; nombres de carpeta y archivo no deciden
-  a qué serie pertenece una instancia.
-- El espaciado entre cortes se calcula como la mediana de las distancias proyectadas
-  sobre la normal de imagen. Si no puede calcularse, se usa `SpacingBetweenSlices` y
-  después `SliceThickness` como respaldo.
-- DICOMDIR y Enhanced CT/multiframe se identifican con claridad, pero su lectura queda
-  para la siguiente iteración.
-- La compatibilidad debe validarse con CBCT anonimizados de varios fabricantes. No se
-  incorporan estudios clínicos al repositorio; los fixtures futuros deberán ser
-  sintéticos o estar explícitamente anonimizados y autorizados.
-- Esta clasificación es de interoperabilidad técnica. No convierte DentVoxel en un
-  dispositivo médico validado ni sustituye la verificación clínica profesional.
+- UIDs are the only grouping keys. Folder and file names never determine series membership.
+- Inter-slice spacing is the median distance projected onto the image normal. When it
+  cannot be calculated, `SpacingBetweenSlices` and then `SliceThickness` are used as fallbacks.
+- DICOMDIR and Enhanced CT/multiframe are identified clearly but remain unsupported in
+  this iteration.
+- Compatibility must be validated with anonymized CBCT data from multiple manufacturers.
+  Clinical studies must not be committed; future fixtures must be synthetic or explicitly
+  authorized and de-identified.
+- Classification describes technical interoperability. It does not make DentVoxel a
+  validated medical device or replace professional clinical verification.
 
-## Siguiente validación
+## Next validation step
 
-Preparar una matriz local, no versionada, con estudios anonimizados que cubra al menos
-volúmenes monoframe sin compresión, JPEG lossless, JPEG 2000, estudios con scout, varias
-series en un estudio, varios estudios en una carpeta y una sintaxis deliberadamente no
-soportada. Registrar fabricante, sintaxis, dimensiones, resultado esperado, consumo de
-memoria y tiempo de apertura sin conservar datos identificables.
+Prepare a local, untracked compatibility matrix containing authorized anonymized studies
+that cover uncompressed single-frame volumes, JPEG lossless, JPEG 2000, a study with a
+scout view, multiple series in one study, multiple studies in one folder, and a
+deliberately unsupported transfer syntax. Record manufacturer, syntax, dimensions,
+expected result, memory use, and opening time without retaining identifiable data.

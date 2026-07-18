@@ -1,13 +1,13 @@
-# Seguridad y datos clínicos
+# Security and clinical data
 
-DentVoxel procesa los archivos DICOM en el navegador. El MVP no los sube, no los
-guarda en una base de datos y no incorpora analítica. No incluyas estudios clínicos,
-capturas con datos de paciente ni credenciales en incidencias públicas.
+DentVoxel processes DICOM files inside the browser. The MVP does not upload them, store
+them in a database, or include analytics. Never attach clinical studies, identifiable
+screenshots, credentials, or patient information to public issues or pull requests.
 
-Para reportar una vulnerabilidad, usa un aviso privado de seguridad de GitHub. No
-publiques información de pacientes ni un archivo DICOM como prueba.
+Report vulnerabilities through a private GitHub security advisory. Do not publish a
+patient file as a proof of concept.
 
-Este proyecto está en fase alfa y **no es todavía un dispositivo médico validado**.
-No debe utilizarse como única base para diagnóstico, planificación quirúrgica o toma
-de decisiones clínicas hasta completar validación de exactitud, interoperabilidad,
-gestión de riesgos y los requisitos regulatorios de cada mercado.
+DentVoxel is currently a technical alpha and **is not a validated medical device**. It
+must not be used as the sole basis for diagnosis, surgical planning, or clinical
+decisions until accuracy validation, interoperability testing, risk management, and the
+applicable regulatory requirements have been completed.

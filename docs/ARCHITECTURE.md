@@ -1,43 +1,45 @@
-# Arquitectura
+# Architecture
 
-## Decisión principal: local-first
+## Primary decision: local-first
 
-El navegador recibe objetos `File` elegidos por el usuario. El cargador DICOM crea
-identificadores locales, extrae metadatos y decodifica píxeles en Web Workers. El motor
-construye un volumen en memoria y lo comparte entre cuatro viewports WebGL. Ningún
-archivo cruza la red.
+The browser receives `File` objects selected by the user. A local index extracts safe
+DICOM metadata and groups instances before the selected series is registered with the
+image loader. Pixel data is decoded in Web Workers, and the rendering engine builds one
+in-memory volume shared by four WebGL viewports. No clinical file crosses the network.
 
 ```text
-Carpeta DICOM -> índice local de metadatos -> estudio/serie elegida
-                                            |
-                                            `-> cargador + códecs WASM -> volumen en memoria
-                                                                          |-> axial
-                                                                          |-> coronal
-                                                                          |-> sagital
-                                                                          `-> render 3D
+DICOM folder -> local metadata index -> selected study and series
+                                           |
+                                           `-> loader + WASM codecs -> in-memory volume
+                                                                         |-> axial
+                                                                         |-> coronal
+                                                                         |-> sagittal
+                                                                         `-> 3D rendering
 ```
 
-La herramienta Crosshairs mantiene un único punto físico 3D. Trasladar su centro
-alinea los tres planos; sus asas de rotación crean cortes oblicuos para seguir la
-angulación dental. La rueda recorre cortes y las herramientas de ventana/nivel,
-desplazamiento y zoom operan sobre el viewport activo.
+The Crosshairs tool maintains one physical 3D point. Moving its center aligns all three
+planes, while its rotation handles create oblique slices that follow dental anatomy.
+The mouse wheel navigates slices, and window/level, pan, and zoom operate on the active
+viewport.
 
-## Capas
+## Layers
 
-- `src/App.tsx`: experiencia, estados de carga y controles.
-- `src/lib/dicomCatalog.ts`: lectura local de cabeceras, agrupación, clasificación y metadatos seguros.
-- `src/lib/cornerstone.ts`: inicialización, volumen, viewports y herramientas.
-- Cornerstone3D + VTK.js: coordenadas físicas, WebGL, MPR y render volumétrico.
-- DICOM Image Loader: DICOM Part 10, códecs WASM y trabajo en segundo plano.
-- PWA: recursos del visor disponibles sin conexión después de la primera visita.
+- `src/App.tsx`: application experience, language state, loading states, and controls.
+- `src/i18n.ts`: English and Spanish user-facing messages.
+- `src/lib/dicomCatalog.ts`: local header reading, grouping, classification, and safe metadata.
+- `src/lib/cornerstone.ts`: initialization, volume lifecycle, viewports, and tools.
+- Cornerstone3D and VTK.js: physical coordinates, WebGL, MPR, and volume rendering.
+- DICOM Image Loader: DICOM Part 10 parsing, WASM codecs, and worker-based decoding.
+- PWA: viewer resources remain available offline after the first visit.
 
-El índice conserva referencias `File` únicamente en memoria y sólo entrega al motor los
-archivos de la serie elegida. No persiste el catálogo ni lee campos de identidad para la
-interfaz. Las reglas y limitaciones se documentan en [SERIES_SELECTION.md](SERIES_SELECTION.md).
+The catalog retains `File` references only in memory and passes only the selected series
+to Cornerstone. It does not persist the catalog or expose patient identity fields in the
+interface. Classification rules and limitations are documented in
+[SERIES_SELECTION.md](SERIES_SELECTION.md).
 
-## Futuro
+## Future distribution
 
-Una envoltura Tauri puede reutilizar exactamente la misma interfaz para distribuir un
-ejecutable firmado y asociar la extensión `.dcm`, sin incorporar Chromium. El núcleo
-debe seguir independiente de cuentas y licencias; módulos premium se conectarán a una
-API estable y separada.
+A Tauri wrapper can reuse the same interface for a signed desktop application and `.dcm`
+file association without bundling another Chromium runtime. The core must remain
+independent from accounts and licensing; premium capabilities will connect through a
+stable, separate module API.

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { localize } from '../i18n';
 import { buildDicomCatalog, type IndexedDicomFile } from './dicomCatalog';
 
 function record(overrides: Partial<IndexedDicomFile> = {}): IndexedDicomFile {
@@ -6,10 +7,10 @@ function record(overrides: Partial<IndexedDicomFile> = {}): IndexedDicomFile {
     file: { name: `slice-${overrides.instanceNumber ?? 1}.dcm`, size: 4096 } as File,
     studyInstanceUid: '1.2.3',
     seriesInstanceUid: '1.2.3.1',
-    studyDescription: 'CBCT maxilar',
+    studyDescription: 'Maxillary CBCT',
     studyDate: '20260717',
-    manufacturer: 'Fabricante de prueba',
-    seriesDescription: 'Volumen 0.2 mm',
+    manufacturer: 'Test manufacturer',
+    seriesDescription: '0.2 mm volume',
     modality: 'CT',
     imageType: ['ORIGINAL', 'PRIMARY', 'AXIAL'],
     transferSyntaxUid: '1.2.840.10008.1.2.1',
@@ -27,7 +28,7 @@ function record(overrides: Partial<IndexedDicomFile> = {}): IndexedDicomFile {
 }
 
 describe('buildDicomCatalog', () => {
-  it('agrupa por estudio y serie y calcula geometría clínica mínima', () => {
+  it('groups by study and series and calculates minimum clinical geometry', () => {
     const records = [
       record({ instanceNumber: 2, imagePosition: [0, 0, 0.4] }),
       record({ instanceNumber: 1, imagePosition: [0, 0, 0.2] }),
@@ -45,7 +46,7 @@ describe('buildDicomCatalog', () => {
     expect(localizer.kind).toBe('localizer');
   });
 
-  it('separa sintaxis no soportadas con una razón explícita', () => {
+  it('separates unsupported transfer syntaxes with an explicit reason', () => {
     const records = [
       record({ instanceNumber: 1, transferSyntaxUid: '9.9.9' }),
       record({ instanceNumber: 2, transferSyntaxUid: '9.9.9' }),
@@ -54,10 +55,10 @@ describe('buildDicomCatalog', () => {
     const series = buildDicomCatalog(records, new Map(), 2).studies[0].series[0];
 
     expect(series.kind).toBe('incompatible');
-    expect(series.reason).toContain('9.9.9');
+    expect(localize('en', series.reason)).toContain('9.9.9');
   });
 
-  it('mantiene separados estudios distintos aunque compartan descripción', () => {
+  it('keeps different studies separate even when they share a description', () => {
     const records = [
       record({ instanceNumber: 1 }),
       record({ instanceNumber: 2 }),

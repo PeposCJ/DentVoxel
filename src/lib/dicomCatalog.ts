@@ -1,4 +1,5 @@
 import dicomParser, { type DataSet } from 'dicom-parser';
+import { translate, type Language, type MessageDescriptor, type TranslationKey } from '../i18n';
 import { isPotentialDicom } from './files';
 
 const MAX_HEADER_BYTES = 4 * 1024 * 1024;
@@ -52,7 +53,7 @@ export interface DicomSeries {
   description: string;
   modality: string;
   kind: SeriesKind;
-  reason?: string;
+  reason?: MessageDescriptor;
   files: File[];
   fileCount: number;
   imageCount: number;
@@ -70,7 +71,7 @@ export interface DicomStudy {
 
 export interface DicomCatalog {
   studies: DicomStudy[];
-  issues: Array<{ reason: string; count: number }>;
+  issues: Array<{ reason: MessageDescriptor; count: number }>;
   scannedFiles: number;
 }
 
@@ -158,40 +159,40 @@ function nearlyEqual(a?: number, b?: number): boolean {
   return Math.abs(a - b) <= Math.max(0.001, Math.abs(a) * 0.001);
 }
 
-function classify(items: IndexedDicomFile[]): { kind: SeriesKind; reason?: string } {
+function classify(items: IndexedDicomFile[]): { kind: SeriesKind; reason?: MessageDescriptor } {
   const first = items[0];
   const searchable = `${first.seriesDescription} ${items.flatMap((item) => item.imageType).join(' ')}`.toUpperCase();
   if (/LOCALIZER|LOCALISER|SCOUT|TOPOGRAM|SURVIEW|PROJECTION/.test(searchable)) {
-    return { kind: 'localizer', reason: 'Vista de localización separada del volumen' };
+    return { kind: 'localizer', reason: { key: 'localizerReason' } };
   }
   if (items.some((item) => item.numberOfFrames > 1)) {
-    return { kind: 'incompatible', reason: 'DICOM multiframe aún no soportado' };
+    return { kind: 'incompatible', reason: { key: 'multiframeReason' } };
   }
   if (items.some((item) => !item.hasPixelData)) {
-    return { kind: 'incompatible', reason: 'La serie contiene objetos sin datos de píxel' };
+    return { kind: 'incompatible', reason: { key: 'noPixelDataReason' } };
   }
   if (items.length < 2) {
-    return { kind: 'incompatible', reason: 'Se requieren al menos dos cortes para reconstruir un volumen' };
+    return { kind: 'incompatible', reason: { key: 'tooFewSlicesReason' } };
   }
   const unsupportedSyntax = items.find((item) => !SUPPORTED_TRANSFER_SYNTAXES.has(item.transferSyntaxUid));
   if (unsupportedSyntax) {
     const syntax = unsupportedSyntax.transferSyntaxUid || 'no declarada';
-    return { kind: 'incompatible', reason: `Sintaxis de transferencia no soportada: ${syntax}` };
+    return { kind: 'incompatible', reason: { key: 'unsupportedSyntaxReason', values: { syntax } } };
   }
   if (first.modality && first.modality !== 'CT') {
-    return { kind: 'incompatible', reason: `Modalidad ${first.modality} no compatible con volumen CBCT` };
+    return { kind: 'incompatible', reason: { key: 'modalityReason', values: { modality: first.modality } } };
   }
   if (items.some((item) => !item.rows || !item.columns || !item.pixelSpacing || !item.imagePosition || !item.imageOrientation)) {
-    return { kind: 'incompatible', reason: 'Geometría espacial DICOM incompleta' };
+    return { kind: 'incompatible', reason: { key: 'incompleteGeometryReason' } };
   }
   if (items.some((item) => item.rows !== first.rows || item.columns !== first.columns)) {
-    return { kind: 'incompatible', reason: 'Dimensiones de corte inconsistentes' };
+    return { kind: 'incompatible', reason: { key: 'inconsistentDimensionsReason' } };
   }
   if (items.some((item) => !nearlyEqual(item.pixelSpacing?.[0], first.pixelSpacing?.[0]) || !nearlyEqual(item.pixelSpacing?.[1], first.pixelSpacing?.[1]))) {
-    return { kind: 'incompatible', reason: 'Espaciado de píxel inconsistente' };
+    return { kind: 'incompatible', reason: { key: 'inconsistentSpacingReason' } };
   }
   if (items.some((item) => item.imageOrientation?.some((value, index) => !nearlyEqual(value, first.imageOrientation?.[index])))) {
-    return { kind: 'incompatible', reason: 'Orientación de cortes inconsistente' };
+    return { kind: 'incompatible', reason: { key: 'inconsistentOrientationReason' } };
   }
   return { kind: 'volume' };
 }
@@ -212,7 +213,7 @@ function buildSeries(studyId: string, seriesId: string, items: IndexedDicomFile[
   return {
     id: seriesId,
     studyId,
-    description: first.seriesDescription || 'Serie sin descripción',
+    description: first.seriesDescription,
     modality: first.modality || '—',
     ...classification,
     files: sorted.map((item) => item.file),
@@ -223,7 +224,7 @@ function buildSeries(studyId: string, seriesId: string, items: IndexedDicomFile[
   };
 }
 
-export function buildDicomCatalog(records: IndexedDicomFile[], issues: Map<string, number>, scannedFiles: number): DicomCatalog {
+export function buildDicomCatalog(records: IndexedDicomFile[], issues: Map<TranslationKey, number>, scannedFiles: number): DicomCatalog {
   const groups = new Map<string, IndexedDicomFile[]>();
   for (const record of records) {
     const key = `${record.studyInstanceUid}\u0000${record.seriesInstanceUid}`;
@@ -238,9 +239,9 @@ export function buildDicomCatalog(records: IndexedDicomFile[], issues: Map<strin
     const first = items[0];
     const study = studies.get(studyId) ?? {
       id: studyId,
-      description: first.studyDescription || 'Estudio sin descripción',
+      description: first.studyDescription,
       date: first.studyDate,
-      manufacturer: first.manufacturer || 'No especificado',
+      manufacturer: first.manufacturer,
       series: [],
     };
     study.series.push(buildSeries(studyId, seriesId, items));
@@ -256,7 +257,7 @@ export function buildDicomCatalog(records: IndexedDicomFile[], issues: Map<strin
 
   return {
     studies: [...studies.values()].sort((a, b) => b.date.localeCompare(a.date)),
-    issues: [...issues].map(([reason, count]) => ({ reason, count })),
+    issues: [...issues].map(([key, count]) => ({ reason: { key }, count })),
     scannedFiles,
   };
 }
@@ -267,23 +268,23 @@ export async function indexDicomFiles(
   signal?: AbortSignal,
 ): Promise<DicomCatalog> {
   const records: IndexedDicomFile[] = [];
-  const issues = new Map<string, number>();
-  const addIssue = (reason: string) => issues.set(reason, (issues.get(reason) ?? 0) + 1);
+  const issues = new Map<TranslationKey, number>();
+  const addIssue = (key: TranslationKey) => issues.set(key, (issues.get(key) ?? 0) + 1);
 
   for (let index = 0; index < files.length; index += 1) {
-    if (signal?.aborted) throw new DOMException('Indexación cancelada', 'AbortError');
+    if (signal?.aborted) throw new DOMException('Indexing cancelled', 'AbortError');
     const file = files[index];
     const upperName = file.name.toUpperCase();
-    if (upperName === 'DICOMDIR') addIssue('DICOMDIR reservado para una fase posterior');
-    else if (!isPotentialDicom(file)) addIssue('Archivo auxiliar ignorado');
+    if (upperName === 'DICOMDIR') addIssue('dicomdirIssue');
+    else if (!isPotentialDicom(file)) addIssue('auxiliaryIssue');
     else {
       try {
         const metadata = await parseFile(file);
-        if (!metadata.studyInstanceUid || !metadata.seriesInstanceUid) addIssue('DICOM sin identificadores de estudio o serie');
-        else if (!metadata.hasPixelData) addIssue('Objeto DICOM sin datos de píxel');
+        if (!metadata.studyInstanceUid || !metadata.seriesInstanceUid) addIssue('missingIdentifiersIssue');
+        else if (!metadata.hasPixelData) addIssue('noPixelIssue');
         else records.push(metadata);
       } catch {
-        addIssue('Archivo no DICOM o DICOM Part 10 inválido');
+        addIssue('invalidDicomIssue');
       }
     }
     onProgress(index + 1, files.length);
@@ -293,8 +294,8 @@ export async function indexDicomFiles(
   return buildDicomCatalog(records, issues, files.length);
 }
 
-export function formatDicomDate(value: string): string {
-  if (!/^\d{8}$/.test(value)) return value || 'Fecha no especificada';
+export function formatDicomDate(value: string, language: Language): string {
+  if (!/^\d{8}$/.test(value)) return value || translate(language, 'unspecifiedDate');
   return `${value.slice(6, 8)}/${value.slice(4, 6)}/${value.slice(0, 4)}`;
 }
 

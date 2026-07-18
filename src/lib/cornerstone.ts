@@ -18,6 +18,7 @@ import {
   WindowLevelTool,
   ZoomTool,
 } from '@cornerstonejs/tools';
+import { translate, type Language } from '../i18n';
 import { isPotentialDicom } from './files';
 
 export type ToolName = 'Crosshairs' | 'WindowLevel' | 'Pan' | 'Zoom';
@@ -43,10 +44,10 @@ export async function initializeImaging(): Promise<void> {
   initialized = true;
 }
 
-function configureTools() {
+function configureTools(language: Language) {
   ToolGroupManager.destroyToolGroup(TOOL_GROUP_ID);
   const group = ToolGroupManager.createToolGroup(TOOL_GROUP_ID);
-  if (!group) throw new Error('No se pudo crear el grupo de herramientas.');
+  if (!group) throw new Error(translate(language, 'toolGroupError'));
 
   group.addTool(CrosshairsTool.toolName, {
     getReferenceLineColor: (id: string) =>
@@ -74,9 +75,10 @@ export async function loadDicomStudy(
   elements: Record<(typeof VIEWPORT_IDS)[number], HTMLDivElement>,
   onProgress: (value: number) => void,
   signal?: AbortSignal,
+  language: Language = 'en',
 ): Promise<{ images: number; description: string }> {
   const throwIfCancelled = () => {
-    if (signal?.aborted) throw new DOMException('Carga cancelada', 'AbortError');
+    if (signal?.aborted) throw new DOMException(translate(language, 'loadCancelled'), 'AbortError');
   };
 
   throwIfCancelled();
@@ -86,7 +88,7 @@ export async function loadDicomStudy(
 
   const candidates = files.filter(isPotentialDicom);
   if (candidates.length < 2) {
-    throw new Error('No se encontraron suficientes cortes DICOM en la carpeta.');
+    throw new Error(translate(language, 'insufficientDicom'));
   }
 
   const imageIds = candidates.map((file) => wadouri.fileManager.add(file));
@@ -119,7 +121,7 @@ export async function loadDicomStudy(
       defaultOptions: { background: [0.015, 0.025, 0.035] },
     },
   ]);
-  configureTools();
+  configureTools(language);
   onProgress(24);
 
   activeVolumeId = `cornerstoneStreamingImageVolume:dentvoxel-${Date.now()}`;
@@ -148,7 +150,7 @@ export async function loadDicomStudy(
 
   return {
     images: imageIds.length,
-    description: candidates[0]?.webkitRelativePath?.split('/')[0] || 'Estudio local',
+    description: candidates[0]?.webkitRelativePath?.split('/')[0] || translate(language, 'localStudy'),
   };
 }
 

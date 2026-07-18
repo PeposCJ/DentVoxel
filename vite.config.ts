@@ -14,6 +14,7 @@ export default defineConfig({
         name: 'DentVoxel',
         short_name: 'DentVoxel',
         description: 'Open-source, private and local-first dental CBCT/DICOM viewer',
+        lang: 'en',
         theme_color: '#071018',
         background_color: '#071018',
         display: 'standalone',
