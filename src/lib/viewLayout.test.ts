@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { chooseViewGrid, clampSplit } from './viewLayout';
+import { chooseManualViewGrid, chooseViewGrid, clampSplit } from './viewLayout';
+
+describe('chooseManualViewGrid', () => {
+  it('keeps three views in an adjustable two-by-two workspace', () => {
+    expect(chooseManualViewGrid(3)).toEqual({ columns: 2, rows: 2, expandLast: true });
+  });
+
+  it('keeps two views side by side for manual resizing', () => {
+    expect(chooseManualViewGrid(2)).toEqual({ columns: 2, rows: 1, expandLast: false });
+  });
+});
 
 describe('chooseViewGrid', () => {
   it('uses all available space for one view', () => {

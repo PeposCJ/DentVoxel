@@ -41,7 +41,7 @@ import {
   type DicomSeries,
 } from './lib/dicomCatalog';
 import { getDeviceMemoryGiB, planVolumeLoad } from './lib/volumePolicy';
-import { chooseViewGrid, clampSplit } from './lib/viewLayout';
+import { chooseManualViewGrid, chooseViewGrid, clampSplit } from './lib/viewLayout';
 import { localize, translate, type Language, type TranslationKey, type TranslationValues } from './i18n';
 
 type Status = 'empty' | 'indexing' | 'selecting' | 'loading' | 'ready' | 'error';
@@ -108,7 +108,7 @@ export default function App() {
   const [gridSize, setGridSize] = useState({ width: 1, height: 1 });
   const [columnSplit, setColumnSplit] = useState(50);
   const [rowSplit, setRowSplit] = useState(50);
-  const [autoLayout, setAutoLayout] = useState(true);
+  const [autoLayout, setAutoLayout] = useState(false);
   const [viewSelectorOpen, setViewSelectorOpen] = useState(false);
   const deviceMemoryGiB = useMemo(getDeviceMemoryGiB, []);
 
@@ -163,8 +163,10 @@ export default function App() {
     [hiddenViews],
   );
   const viewGrid = useMemo(
-    () => chooseViewGrid(visibleViews.length, gridSize.width, gridSize.height),
-    [gridSize, visibleViews.length],
+    () => autoLayout
+      ? chooseViewGrid(visibleViews.length, gridSize.width, gridSize.height)
+      : chooseManualViewGrid(visibleViews.length),
+    [autoLayout, gridSize, visibleViews.length],
   );
 
   const minimizeView = (id: ViewportId) => {
@@ -185,10 +187,14 @@ export default function App() {
     else minimizeView(id);
   };
 
-  const restoreAutomaticLayout = () => {
-    setAutoLayout(true);
-    setColumnSplit(50);
-    setRowSplit(50);
+  const toggleAutomaticLayout = () => {
+    setAutoLayout((active) => {
+      if (!active) {
+        setColumnSplit(50);
+        setRowSplit(50);
+      }
+      return !active;
+    });
   };
 
   const resizeGrid = (axis: 'column' | 'row', event: React.PointerEvent<HTMLDivElement>) => {
@@ -332,7 +338,7 @@ export default function App() {
         <ToolButton label={t('length')} disabled={status !== 'ready'} active={activeTool === 'Length'} onClick={() => selectTool('Length')}><Ruler /></ToolButton>
         <ToolButton label={t('deleteMeasurement')} disabled={status !== 'ready'} onClick={deleteSelectedMeasurements}><Trash2 /></ToolButton>
         <div className="tool-divider" />
-        <ToolButton label={t('autoLayout')} disabled={status !== 'ready'} active={autoLayout} onClick={restoreAutomaticLayout}><LayoutGrid /></ToolButton>
+        <ToolButton label={t('autoLayout')} disabled={status !== 'ready'} active={autoLayout} onClick={toggleAutomaticLayout}><LayoutGrid /></ToolButton>
         <ToolButton label={t('reset')} disabled={status !== 'ready'} onClick={resetCameras}><RotateCcw /></ToolButton>
         <ToolButton label={t('fullscreen')} onClick={() => document.documentElement.requestFullscreen?.()}><Maximize /></ToolButton>
       </aside>

@@ -4,6 +4,13 @@ export interface ViewGrid {
   expandLast: boolean;
 }
 
+export function chooseManualViewGrid(viewCount: number): ViewGrid {
+  if (viewCount <= 1) return { columns: 1, rows: 1, expandLast: false };
+  if (viewCount === 2) return { columns: 2, rows: 1, expandLast: false };
+  if (viewCount === 3) return { columns: 2, rows: 2, expandLast: true };
+  return { columns: 2, rows: 2, expandLast: false };
+}
+
 export function chooseViewGrid(viewCount: number, width: number, height: number): ViewGrid {
   if (viewCount <= 1) return { columns: 1, rows: 1, expandLast: false };
   const aspectRatio = height > 0 ? width / height : 1;

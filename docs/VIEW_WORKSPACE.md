@@ -18,8 +18,10 @@ not change the physical point shared by the synchronized views.
 - A panel can be minimized and restored without discarding its camera or annotations.
   A persistent **Views** selector lists every available viewport and can reopen any hidden
   view; the final visible viewport cannot be closed.
-- Automatic layout chooses rows and columns from the visible panels and available aspect
-  ratio. The default action also restores an even 50/50 split after manual resizing.
+- Manual layout is the default. With three visible views it retains an adjustable 2 by 2
+  workspace instead of forcing a three-column row. Automatic layout is an explicit toggle;
+  it never enables itself when a view is minimized. Enabling it restores a 50/50 split and
+  chooses rows and columns from the available aspect ratio.
 - Cornerstone viewports are explicitly resized after every layout or window-size change.
   Minimized panels remain attached at a negligible size so restoring them does not require
   rebuilding the volume or tool group.
@@ -38,6 +40,11 @@ The first panoramic implementation should separate three concerns:
 1. an editable arch model stored in physical millimetres;
 2. curved planar resampling with documented thickness and interpolation;
 3. presentation state for the panorama, locator, and perpendicular cross sections.
+
+The initial geometry layer now represents editable control points in physical world
+millimetres, invalidates professional confirmation after every edit, and samples the arch
+at regular physical intervals with tangent and perpendicular directions. It deliberately
+uses an auditable polyline before introducing smoothing and image resampling.
 
 This separation keeps future clinician-assisted arch or canal suggestions editable and
 prevents an automatic result from being presented as definitive.

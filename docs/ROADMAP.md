@@ -26,6 +26,8 @@
   automatic use of available space. Persisted layouts and additional view types remain.
 - Implement curved planar reformation and cross-sectional views of the dental arch,
   including an editable arch curve and a synchronized panoramic position locator.
+  The first local geometry model and regularly spaced cross-section sampling are available;
+  viewport editing, smoothing, and pixel resampling remain pending.
 - Test CBCT studies from multiple manufacturers and publish a DICOM conformance statement.
 - Loading and indexing cancellation, staged progress, and adaptive reduced previews for
   volumes above a device-aware voxel budget are available. Standardized local performance
