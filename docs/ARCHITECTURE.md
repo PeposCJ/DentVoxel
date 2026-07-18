@@ -29,6 +29,7 @@ viewport.
 - `src/App.tsx`: application experience, language state, loading states, and controls.
 - `src/i18n.ts`: English and Spanish user-facing messages.
 - `src/lib/dicomCatalog.ts`: local header reading, grouping, classification, and safe metadata.
+- `src/lib/dicomText.ts`: bounded, control-safe decoding of displayed DICOM text.
 - `src/lib/volumePolicy.ts`: device-aware voxel budget and deterministic preview factor.
 - `src/lib/cornerstone.ts`: initialization, volume lifecycle, viewports, and tools.
 - Cornerstone3D and VTK.js: physical coordinates, WebGL, MPR, and volume rendering.
@@ -49,6 +50,19 @@ during worker decoding, and updates physical spacing for the reduced grid. This 
 allocating the full-resolution volume merely to create a preview. The policy uses only
 the browser's coarse memory class; it does not fingerprint, persist, or transmit device
 information.
+
+Displayed study, manufacturer, and series labels are decoded from their raw element
+bytes according to a single declared `SpecificCharacterSet` when the browser supports
+that encoding. UTF-8 and common single-byte dental-export encodings are covered. Labels
+are Unicode-normalized, stripped of display-control and bidirectional-control characters,
+and limited to 160 characters before reaching React. Multiple ISO 2022 code-extension
+sets remain a documented interoperability limitation rather than being guessed.
+
+Streaming volume completion is now part of the load contract. `loadDicomStudy` listens
+to volume-modification events for real frame progress and does not resolve until every
+selected frame has either been processed successfully or produced an explicit decoding
+error. Cancellation removes its listeners and rejects as `AbortError`, so the application
+cannot accidentally present a partially decoded volume as ready.
 
 ## Future distribution
 

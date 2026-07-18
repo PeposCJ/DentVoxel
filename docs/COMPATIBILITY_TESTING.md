@@ -60,6 +60,7 @@ transfer syntax.
    viewport, study header, and status bar identify it as reduced, and record the factor.
 6. Cancel once during header reading and once during pixel decoding. Confirm that the
    application returns to a usable state and can reopen the folder without a reload.
+   Confirm that cancellation is not reported as an invalid DICOM file.
 7. Repeat the opening after taking the browser offline. Record peak memory and elapsed
    indexing/opening time using local developer tools only.
 
@@ -92,7 +93,8 @@ transfer syntax.
 | Overall result | Pass / Partial / Fail / Blocked |
 | Non-identifying notes |  |
 
-Automated repository tests use only synthetic metadata records. Real compatibility
+Automated repository tests use only synthetic metadata records and synthetic byte arrays
+for DICOM character-set and cancellation behavior. Real compatibility
 results require the manual protocol because pixel decoding, geometry, and manufacturer
 export behavior cannot be validated from fabricated headers alone.
 

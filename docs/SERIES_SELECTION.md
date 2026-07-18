@@ -15,6 +15,11 @@ classification, imaging-engine initialization, slice registration, volume constr
 pixel decoding, and rendering. Cancellation returns to the previous usable state and
 shows a localized confirmation instead of leaving a stalled progress dialog.
 
+Cancellation checks run before and after each asynchronous file read. An abort raised
+while a header is being read is propagated as cancellation and is never counted as an
+invalid DICOM object. During volume opening, pixel progress reflects processed frames;
+the ready state is emitted only after the selected frames have completed decoding.
+
 ## Classification
 
 - **Volume:** at least two single-frame instances with pixel data, spatial geometry,
@@ -61,6 +66,12 @@ and modality, slice count, dimensions, and voxel spacing. It does not access or 
 `PatientName`, `PatientID`, date of birth, or other identity fields. Metadata, files,
 and pixels remain in memory on the device; this feature adds no persistence, telemetry,
 or network communication.
+
+The displayed text fields honor a single declared DICOM `SpecificCharacterSet`, including
+UTF-8 and common ISO-8859, Japanese, Korean, Thai, GBK, and GB18030 encodings supported by
+the browser. Text is normalized, bounded, and stripped of control characters before
+display. Multi-valued ISO 2022 code-extension sequences are not interpreted yet; DentVoxel
+falls back to a sanitized parser value instead of applying an uncertain conversion.
 
 ## Decisions and known limitations
 

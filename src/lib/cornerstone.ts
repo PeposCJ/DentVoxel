@@ -3,6 +3,7 @@ import {
   RenderingEngine,
   cache,
   decimatedVolumeLoader,
+  eventTarget,
   init as initCore,
   setVolumesForViewports,
   volumeLoader,
@@ -186,17 +187,52 @@ export async function loadDicomStudy(
   activeVolumeCancel = cancelVolume;
   activeAbortSignal = signal;
   onProgress({ stage: 'decoding', percent: 25, current: 0, total: selectedImageIds.length });
-  volume.load((evt) => {
-    if (signal?.aborted) return;
-    const detail = evt as unknown as { framesLoaded?: number; framesTotal?: number };
-    if (detail.framesLoaded && detail.framesTotal) {
+  await new Promise<void>((resolve, reject) => {
+    const total = selectedImageIds.length;
+    const modifiedEvent = CoreEnums.Events.IMAGE_VOLUME_MODIFIED;
+    const onModified = (event: Event) => {
+      const detail = (event as CustomEvent<{ volumeId?: string; framesProcessed?: number }>).detail;
+      if (detail.volumeId !== activeVolumeId || signal?.aborted) return;
+      const current = detail.framesProcessed ?? 0;
       onProgress({
         stage: 'decoding',
-        percent: 25 + Math.round((detail.framesLoaded / detail.framesTotal) * 65),
-        current: detail.framesLoaded,
-        total: detail.framesTotal,
+        percent: 25 + Math.round((current / total) * 65),
+        current,
+        total,
       });
-    }
+    };
+    const cleanup = () => {
+      eventTarget.removeEventListener(modifiedEvent, onModified);
+      signal?.removeEventListener('abort', onAbort);
+    };
+    const onAbort = () => {
+      cleanup();
+      reject(new DOMException(translate(language, 'loadCancelled'), 'AbortError'));
+    };
+
+    eventTarget.addEventListener(modifiedEvent, onModified);
+    signal?.addEventListener('abort', onAbort, { once: true });
+    volume.load((event) => {
+      const detail = event as {
+        framesLoaded?: number;
+        framesProcessed?: number;
+        totalNumFrames?: number;
+      };
+      const framesTotal = detail.totalNumFrames ?? total;
+      const framesLoaded = detail.framesLoaded ?? 0;
+      cleanup();
+      if (signal?.aborted) {
+        reject(new DOMException(translate(language, 'loadCancelled'), 'AbortError'));
+      } else if (framesLoaded < framesTotal) {
+        reject(new Error(translate(language, 'pixelDecodeFailed', {
+          failed: framesTotal - framesLoaded,
+          total: framesTotal,
+        })));
+      } else {
+        onProgress({ stage: 'decoding', percent: 90, current: framesLoaded, total: framesTotal });
+        resolve();
+      }
+    });
   });
   throwIfCancelled();
   await setVolumesForViewports(engine, [{ volumeId: activeVolumeId }], [...VIEWPORT_IDS]);

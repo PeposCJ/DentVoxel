@@ -1,5 +1,6 @@
 import dicomParser, { type DataSet } from 'dicom-parser';
 import { translate, type Language, type MessageDescriptor, type TranslationKey } from '../i18n';
+import { readDicomLabel } from './dicomText';
 import { isPotentialDicom } from './files';
 
 const MAX_HEADER_BYTES = 4 * 1024 * 1024;
@@ -114,10 +115,10 @@ function toMetadata(file: File, dataSet: DataSet): IndexedDicomFile {
     file,
     studyInstanceUid: clean(dataSet.string('x0020000d')),
     seriesInstanceUid: clean(dataSet.string('x0020000e')),
-    studyDescription: clean(dataSet.string('x00081030')),
+    studyDescription: readDicomLabel(dataSet, 'x00081030'),
     studyDate: clean(dataSet.string('x00080020')),
-    manufacturer: clean(dataSet.string('x00080070')),
-    seriesDescription: clean(dataSet.string('x0008103e')),
+    manufacturer: readDicomLabel(dataSet, 'x00080070'),
+    seriesDescription: readDicomLabel(dataSet, 'x0008103e'),
     modality: clean(dataSet.string('x00080060')),
     imageType: clean(dataSet.string('x00080008')).split('\\').filter(Boolean),
     transferSyntaxUid: clean(dataSet.string('x00020010')),
@@ -137,9 +138,15 @@ function toMetadata(file: File, dataSet: DataSet): IndexedDicomFile {
   };
 }
 
-async function parseFile(file: File): Promise<IndexedDicomFile> {
+function throwIfAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) throw new DOMException('Indexing cancelled', 'AbortError');
+}
+
+async function parseFile(file: File, signal?: AbortSignal): Promise<IndexedDicomFile> {
   const parse = async (length: number) => {
+    throwIfAborted(signal);
     const bytes = new Uint8Array(await file.slice(0, length).arrayBuffer());
+    throwIfAborted(signal);
     return dicomParser.parseDicom(bytes, { untilTag: 'x7fe00010' });
   };
 
@@ -313,18 +320,19 @@ export async function indexDicomFiles(
   const addIssue = (key: TranslationKey) => issues.set(key, (issues.get(key) ?? 0) + 1);
 
   for (let index = 0; index < files.length; index += 1) {
-    if (signal?.aborted) throw new DOMException('Indexing cancelled', 'AbortError');
+    throwIfAborted(signal);
     const file = files[index];
     const upperName = file.name.toUpperCase();
     if (upperName === 'DICOMDIR') addIssue('dicomdirIssue');
     else if (!isPotentialDicom(file)) addIssue('auxiliaryIssue');
     else {
       try {
-        const metadata = await parseFile(file);
+        const metadata = await parseFile(file, signal);
         if (!metadata.studyInstanceUid || !metadata.seriesInstanceUid) addIssue('missingIdentifiersIssue');
         else if (!metadata.hasPixelData) addIssue('noPixelIssue');
         else records.push(metadata);
-      } catch {
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') throw error;
         addIssue('invalidDicomIssue');
       }
     }
@@ -337,7 +345,7 @@ export async function indexDicomFiles(
     if (index % 8 === 7) await new Promise<void>((resolve) => setTimeout(resolve, 0));
   }
 
-  if (signal?.aborted) throw new DOMException('Indexing cancelled', 'AbortError');
+  throwIfAborted(signal);
   onProgress({ stage: 'classifying', current: files.length, total: files.length, percent: 96 });
   await new Promise<void>((resolve) => setTimeout(resolve, 0));
   const catalog = buildDicomCatalog(records, issues, files.length);

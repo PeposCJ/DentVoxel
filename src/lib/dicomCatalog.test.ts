@@ -117,4 +117,22 @@ describe('buildDicomCatalog', () => {
       name: 'AbortError',
     });
   });
+
+  it('does not misclassify cancellation during file reading as invalid DICOM', async () => {
+    const controller = new AbortController();
+    const file = {
+      name: 'cancelled.dcm',
+      size: 512,
+      slice: () => ({
+        arrayBuffer: async () => {
+          controller.abort();
+          return new ArrayBuffer(512);
+        },
+      }),
+    } as unknown as File;
+
+    await expect(indexDicomFiles([file], () => undefined, controller.signal)).rejects.toMatchObject({
+      name: 'AbortError',
+    });
+  });
 });

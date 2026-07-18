@@ -22,6 +22,9 @@
 - Loading and indexing cancellation, staged progress, and adaptive reduced previews for
   volumes above a device-aware voxel budget are available. Standardized local performance
   measurements remain pending.
+- DICOM text decoding now honors common declared character sets, sanitizes displayed
+  labels, preserves cancellation during header reads, and waits for complete pixel
+  decoding before reporting a volume ready.
 
 ## Phase 2 — distribution
 
