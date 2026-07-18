@@ -85,6 +85,7 @@ export default function App() {
   const [progressDetail, setProgressDetail] = useState('');
   const [activeTool, setActiveTool] = useState<ToolName>('Crosshairs');
   const [error, setError] = useState('');
+  const [noticeKey, setNoticeKey] = useState<TranslationKey | ''>('');
   const [catalog, setCatalog] = useState<DicomCatalog | null>(null);
   const [selectedStudyId, setSelectedStudyId] = useState('');
   const [study, setStudy] = useState({ description: '', series: '', images: 0 });
@@ -120,13 +121,16 @@ export default function App() {
     setCatalog(null);
     setStatus('indexing');
     setProgress(0);
-    setProgressDetail(t('filesProgress', { current: 0, total: files.length }));
+    setProgressDetail(t('readingFilesProgress', { current: 0, total: files.length }));
     setError('');
+    setNoticeKey('');
 
     try {
-      const result = await indexDicomFiles(files, (current, total) => {
-        setProgress(Math.round((current / total) * 100));
-        setProgressDetail(t('filesProgress', { current, total }));
+      const result = await indexDicomFiles(files, (update) => {
+        setProgress(update.percent);
+        setProgressDetail(update.stage === 'reading'
+          ? t('readingFilesProgress', { current: update.current, total: update.total })
+          : t('classifyingSeries'));
       }, controller.signal);
       if (controller.signal.aborted) return;
       if (!result.studies.length) {
@@ -153,6 +157,7 @@ export default function App() {
     setProgress(2);
     setProgressDetail(t('selectedSlices', { count: series.imageCount }));
     setError('');
+    setNoticeKey('');
 
     try {
       await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
@@ -160,7 +165,19 @@ export default function App() {
         VIEWPORT_IDS.map((id) => [id, viewportRefs.current[id]]),
       ) as Record<(typeof VIEWPORT_IDS)[number], HTMLDivElement>;
       if (Object.values(elements).some((element) => !element)) throw new Error(t('viewerNotReady'));
-      await loadDicomStudy(series.files, elements, setProgress, controller.signal, language);
+      await loadDicomStudy(series.files, elements, (update) => {
+        setProgress(update.percent);
+        const progressKey = {
+          initializing: 'initializingViewer',
+          registering: 'registeringSlices',
+          building: 'buildingVolume',
+          decoding: 'decodingPixels',
+          rendering: 'renderingViews',
+        }[update.stage] as TranslationKey;
+        setProgressDetail(update.stage === 'decoding' && update.total
+          ? t('decodingPixelsProgress', { current: update.current ?? 0, total: update.total })
+          : t(progressKey));
+      }, controller.signal, language);
       if (controller.signal.aborted) return;
       setStudy({ description: selectedStudy.description, series: series.description, images: series.imageCount });
       setStatus('ready');
@@ -175,10 +192,12 @@ export default function App() {
   }, [language, selectedStudy, t]);
 
   const cancelOperation = () => {
+    const cancelledStage = status;
     operationRef.current?.abort();
     operationRef.current = null;
     destroyStudy();
     setError('');
+    setNoticeKey(cancelledStage === 'indexing' ? 'indexingCancelled' : 'loadCancelled');
     setStatus(catalog ? 'selecting' : 'empty');
   };
 
@@ -239,6 +258,7 @@ export default function App() {
             <h1>{t('welcomeTitle')}<br /><em>{t('welcomeAccent')}</em></h1>
             <p className="welcome-copy">{t('welcomeCopy')}</p>
             {status === 'error' && <div className="error-message"><Info size={16} />{error}</div>}
+            {noticeKey && <div className="notice-message"><Info size={16} />{t(noticeKey)}</div>}
             <button className="primary-action" onClick={() => inputRef.current?.click()}><FolderOpen size={19} /> {t('selectDicomFolder')}</button>
             <span className="drop-hint">{t('dropHint')}</span>
           </div>
@@ -258,7 +278,7 @@ export default function App() {
           <div className="study-selector" role="dialog" aria-modal="true" aria-labelledby="selector-title">
             <div className="selector-header">
               <div><p className="eyebrow">{t('localDicomContent')}</p><h2 id="selector-title">{t('chooseSeries')}</h2></div>
-              <button className="close-selector" onClick={() => { setCatalog(null); setStatus('empty'); }} aria-label={t('closeSelector')}><X /></button>
+              <button className="close-selector" onClick={() => { setCatalog(null); setNoticeKey(''); setStatus('empty'); }} aria-label={t('closeSelector')}><X /></button>
             </div>
             {catalog.studies.length > 1 && (
               <label className="study-select">{t('study')}
@@ -274,6 +294,18 @@ export default function App() {
               <span><Layers3 /><strong>{selectedStudy.series.length}</strong><small>{t('series')}</small></span>
             </div>
             <div className="privacy-note"><ShieldCheck /> {t('privacyNote')}</div>
+            <div className="catalog-summary" aria-label={t('folderSummary')}>
+              <span><strong>{catalog.scannedFiles}</strong><small>{t('filesExamined')}</small></span>
+              <span><strong>{catalog.summary.dicomFiles}</strong><small>{t('dicomIndexed')}</small></span>
+              <span><strong>{catalog.summary.volumeFiles}</strong><small>{t('usableSlices')}</small></span>
+              <span className={catalog.summary.separatedFiles ? 'summary-warning' : ''}><strong>{catalog.summary.separatedFiles}</strong><small>{t('filesSeparated')}</small></span>
+            </div>
+            <p className="classification-summary">{t('classificationSummary', {
+              volumes: catalog.summary.volumeSeries,
+              localizers: catalog.summary.localizerSeries,
+              incompatible: catalog.summary.incompatibleSeries,
+            })}</p>
+            {noticeKey && <div className="selector-notice"><Info />{t(noticeKey)}</div>}
             {error && <div className="selector-error"><AlertTriangle />{error}</div>}
             <div className="series-list">
               {selectedStudy.series.map((series) => <SeriesCard key={series.id} language={language} series={series} t={t} onOpen={() => void loadSeries(series)} />)}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { localize } from '../i18n';
-import { buildDicomCatalog, type IndexedDicomFile } from './dicomCatalog';
+import { localize, type TranslationKey } from '../i18n';
+import { buildDicomCatalog, indexDicomFiles, type IndexedDicomFile } from './dicomCatalog';
 
 function record(overrides: Partial<IndexedDicomFile> = {}): IndexedDicomFile {
   return {
@@ -58,6 +58,36 @@ describe('buildDicomCatalog', () => {
     expect(localize('en', series.reason)).toContain('9.9.9');
   });
 
+  it('reports a missing transfer syntax without embedding a language-specific fallback', () => {
+    const series = buildDicomCatalog([
+      record({ instanceNumber: 1, transferSyntaxUid: '' }),
+      record({ instanceNumber: 2, transferSyntaxUid: '' }),
+    ], new Map(), 2).studies[0].series[0];
+
+    expect(localize('en', series.reason)).toBe('The DICOM transfer syntax is not declared');
+    expect(localize('es', series.reason)).toBe('La sintaxis de transferencia DICOM no está declarada');
+  });
+
+  it('summarizes usable, separated, and indexed files without exposing file names', () => {
+    const records = [
+      record({ instanceNumber: 1 }),
+      record({ instanceNumber: 2 }),
+      record({ seriesInstanceUid: '1.2.3.2', seriesDescription: 'Scout', imageType: ['LOCALIZER'] }),
+      record({ seriesInstanceUid: '1.2.3.3', instanceNumber: 1, transferSyntaxUid: '9.9.9' }),
+      record({ seriesInstanceUid: '1.2.3.3', instanceNumber: 2, transferSyntaxUid: '9.9.9' }),
+    ];
+    const catalog = buildDicomCatalog(records, new Map<TranslationKey, number>([['invalidDicomIssue', 1]]), 6);
+
+    expect(catalog.summary).toEqual({
+      dicomFiles: 5,
+      volumeFiles: 2,
+      separatedFiles: 4,
+      volumeSeries: 1,
+      localizerSeries: 1,
+      incompatibleSeries: 1,
+    });
+  });
+
   it('keeps different studies separate even when they share a description', () => {
     const records = [
       record({ instanceNumber: 1 }),
@@ -67,5 +97,14 @@ describe('buildDicomCatalog', () => {
     ];
 
     expect(buildDicomCatalog(records, new Map(), 4).studies).toHaveLength(2);
+  });
+
+  it('honors cancellation before the classification stage', async () => {
+    const controller = new AbortController();
+    controller.abort();
+
+    await expect(indexDicomFiles([], () => undefined, controller.signal)).rejects.toMatchObject({
+      name: 'AbortError',
+    });
   });
 });

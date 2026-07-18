@@ -19,7 +19,8 @@
 - Add dental presets, linear/angular measurements, and screenshot export.
 - Implement curved planar reformation and cross-sectional views of the dental arch.
 - Test CBCT studies from multiple manufacturers and publish a DICOM conformance statement.
-- Add memory limits, loading cancellation, and local performance measurements.
+- Loading and indexing cancellation plus staged progress are available. Memory limits
+  and standardized local performance measurements remain pending.
 
 ## Phase 2 — distribution
 

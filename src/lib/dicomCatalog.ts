@@ -73,6 +73,23 @@ export interface DicomCatalog {
   studies: DicomStudy[];
   issues: Array<{ reason: MessageDescriptor; count: number }>;
   scannedFiles: number;
+  summary: DicomCatalogSummary;
+}
+
+export interface DicomCatalogSummary {
+  dicomFiles: number;
+  volumeFiles: number;
+  separatedFiles: number;
+  volumeSeries: number;
+  localizerSeries: number;
+  incompatibleSeries: number;
+}
+
+export interface IndexingProgress {
+  stage: 'reading' | 'classifying';
+  current: number;
+  total: number;
+  percent: number;
 }
 
 function clean(value?: string): string {
@@ -176,8 +193,9 @@ function classify(items: IndexedDicomFile[]): { kind: SeriesKind; reason?: Messa
   }
   const unsupportedSyntax = items.find((item) => !SUPPORTED_TRANSFER_SYNTAXES.has(item.transferSyntaxUid));
   if (unsupportedSyntax) {
-    const syntax = unsupportedSyntax.transferSyntaxUid || 'no declarada';
-    return { kind: 'incompatible', reason: { key: 'unsupportedSyntaxReason', values: { syntax } } };
+    return unsupportedSyntax.transferSyntaxUid
+      ? { kind: 'incompatible', reason: { key: 'unsupportedSyntaxReason', values: { syntax: unsupportedSyntax.transferSyntaxUid } } }
+      : { kind: 'incompatible', reason: { key: 'missingTransferSyntaxReason' } };
   }
   if (first.modality && first.modality !== 'CT') {
     return { kind: 'incompatible', reason: { key: 'modalityReason', values: { modality: first.modality } } };
@@ -259,12 +277,32 @@ export function buildDicomCatalog(records: IndexedDicomFile[], issues: Map<Trans
     studies: [...studies.values()].sort((a, b) => b.date.localeCompare(a.date)),
     issues: [...issues].map(([key, count]) => ({ reason: { key }, count })),
     scannedFiles,
+    summary: summarizeCatalog(studies, records.length, scannedFiles),
+  };
+}
+
+function summarizeCatalog(
+  studies: Map<string, DicomStudy>,
+  dicomFiles: number,
+  scannedFiles: number,
+): DicomCatalogSummary {
+  const series = [...studies.values()].flatMap((study) => study.series);
+  const volumeFiles = series
+    .filter((item) => item.kind === 'volume')
+    .reduce((sum, item) => sum + item.fileCount, 0);
+  return {
+    dicomFiles,
+    volumeFiles,
+    separatedFiles: Math.max(0, scannedFiles - volumeFiles),
+    volumeSeries: series.filter((item) => item.kind === 'volume').length,
+    localizerSeries: series.filter((item) => item.kind === 'localizer').length,
+    incompatibleSeries: series.filter((item) => item.kind === 'incompatible').length,
   };
 }
 
 export async function indexDicomFiles(
   files: File[],
-  onProgress: (current: number, total: number) => void,
+  onProgress: (progress: IndexingProgress) => void,
   signal?: AbortSignal,
 ): Promise<DicomCatalog> {
   const records: IndexedDicomFile[] = [];
@@ -287,11 +325,21 @@ export async function indexDicomFiles(
         addIssue('invalidDicomIssue');
       }
     }
-    onProgress(index + 1, files.length);
+    onProgress({
+      stage: 'reading',
+      current: index + 1,
+      total: files.length,
+      percent: Math.round(((index + 1) / files.length) * 92),
+    });
     if (index % 8 === 7) await new Promise<void>((resolve) => setTimeout(resolve, 0));
   }
 
-  return buildDicomCatalog(records, issues, files.length);
+  if (signal?.aborted) throw new DOMException('Indexing cancelled', 'AbortError');
+  onProgress({ stage: 'classifying', current: files.length, total: files.length, percent: 96 });
+  await new Promise<void>((resolve) => setTimeout(resolve, 0));
+  const catalog = buildDicomCatalog(records, issues, files.length);
+  onProgress({ stage: 'classifying', current: files.length, total: files.length, percent: 100 });
+  return catalog;
 }
 
 export function formatDicomDate(value: string, language: Language): string {

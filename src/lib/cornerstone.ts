@@ -23,6 +23,13 @@ import { isPotentialDicom } from './files';
 
 export type ToolName = 'Crosshairs' | 'WindowLevel' | 'Pan' | 'Zoom';
 
+export interface VolumeLoadProgress {
+  stage: 'initializing' | 'registering' | 'building' | 'decoding' | 'rendering';
+  percent: number;
+  current?: number;
+  total?: number;
+}
+
 export const VIEWPORT_IDS = ['axial', 'coronal', 'sagittal', 'volume3d'] as const;
 const MPR_IDS = VIEWPORT_IDS.slice(0, 3);
 const ENGINE_ID = 'dentvoxel-engine';
@@ -73,7 +80,7 @@ function configureTools(language: Language) {
 export async function loadDicomStudy(
   files: File[],
   elements: Record<(typeof VIEWPORT_IDS)[number], HTMLDivElement>,
-  onProgress: (value: number) => void,
+  onProgress: (progress: VolumeLoadProgress) => void,
   signal?: AbortSignal,
   language: Language = 'en',
 ): Promise<{ images: number; description: string }> {
@@ -82,6 +89,7 @@ export async function loadDicomStudy(
   };
 
   throwIfCancelled();
+  onProgress({ stage: 'initializing', percent: 2 });
   await initializeImaging();
   throwIfCancelled();
   destroyStudy();
@@ -92,7 +100,7 @@ export async function loadDicomStudy(
   }
 
   const imageIds = candidates.map((file) => wadouri.fileManager.add(file));
-  onProgress(12);
+  onProgress({ stage: 'registering', percent: 12, current: imageIds.length, total: imageIds.length });
 
   engine = new RenderingEngine(ENGINE_ID);
   engine.setViewports([
@@ -122,7 +130,7 @@ export async function loadDicomStudy(
     },
   ]);
   configureTools(language);
-  onProgress(24);
+  onProgress({ stage: 'building', percent: 24 });
 
   activeVolumeId = `cornerstoneStreamingImageVolume:dentvoxel-${Date.now()}`;
   const volume = await volumeLoader.createAndCacheVolume(activeVolumeId, { imageIds });
@@ -130,23 +138,30 @@ export async function loadDicomStudy(
   signal?.addEventListener('abort', cancelVolume, { once: true });
   activeVolumeCancel = cancelVolume;
   activeAbortSignal = signal;
+  onProgress({ stage: 'decoding', percent: 25, current: 0, total: imageIds.length });
   volume.load((evt) => {
     if (signal?.aborted) return;
     const detail = evt as unknown as { framesLoaded?: number; framesTotal?: number };
     if (detail.framesLoaded && detail.framesTotal) {
-      onProgress(25 + Math.round((detail.framesLoaded / detail.framesTotal) * 65));
+      onProgress({
+        stage: 'decoding',
+        percent: 25 + Math.round((detail.framesLoaded / detail.framesTotal) * 65),
+        current: detail.framesLoaded,
+        total: detail.framesTotal,
+      });
     }
   });
   throwIfCancelled();
   await setVolumesForViewports(engine, [{ volumeId: activeVolumeId }], [...VIEWPORT_IDS]);
   throwIfCancelled();
+  onProgress({ stage: 'rendering', percent: 94 });
 
   const threeD = engine.getViewport('volume3d');
   if ('setProperties' in threeD) {
     (threeD as { setProperties: (p: { preset: string }) => void }).setProperties({ preset: 'CT-Bone' });
   }
   engine.render();
-  onProgress(100);
+  onProgress({ stage: 'rendering', percent: 100 });
 
   return {
     images: imageIds.length,

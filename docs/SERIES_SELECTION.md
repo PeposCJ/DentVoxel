@@ -10,7 +10,10 @@ Cornerstone receives exclusively the `File` objects from the selected series.
 Indexing is sequential to limit peak memory use. DentVoxel first reads up to 4 MiB from
 each file and stops at `PixelData`; it retries with the complete file only when an
 unusually large header requires it. The user can cancel between files and can also
-cancel volume preparation.
+cancel volume preparation. Progress is reported as explicit stages: header reading,
+classification, imaging-engine initialization, slice registration, volume construction,
+pixel decoding, and rendering. Cancellation returns to the previous usable state and
+shows a localized confirmation instead of leaving a stalled progress dialog.
 
 ## Classification
 
@@ -31,6 +34,10 @@ The supported syntax list reflects the currently bundled decoders: uncompressed 
 and big endian, selected baseline and lossless JPEG processes, JPEG-LS, JPEG 2000,
 HTJ2K, and RLE. A syntax outside this list remains visible as an incompatibility with
 its UID instead of failing later during volume loading.
+
+The selector also presents an aggregate classification summary. It reports the number
+of files examined, DICOM objects indexed, usable volume slices, separated files, volume
+series, localizers, and incompatible series. It intentionally does not list filenames.
 
 ## Metadata and privacy
 
@@ -55,8 +62,5 @@ or network communication.
 
 ## Next validation step
 
-Prepare a local, untracked compatibility matrix containing authorized anonymized studies
-that cover uncompressed single-frame volumes, JPEG lossless, JPEG 2000, a study with a
-scout view, multiple series in one study, multiple studies in one folder, and a
-deliberately unsupported transfer syntax. Record manufacturer, syntax, dimensions,
-expected result, memory use, and opening time without retaining identifiable data.
+Follow [CBCT compatibility testing](COMPATIBILITY_TESTING.md) with local, untracked,
+authorized anonymized studies. Publish only aggregate non-identifying results.
