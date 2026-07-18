@@ -10,7 +10,9 @@ in-memory volume shared by four WebGL viewports. No clinical file crosses the ne
 ```text
 DICOM folder -> local metadata index -> selected study and series
                                            |
-                                           `-> loader + WASM codecs -> in-memory volume
+                                           `-> local dataset metadata cache
+                                                        |
+                                                        `-> loader + WASM codecs -> in-memory volume
                                                                          |-> axial
                                                                          |-> coronal
                                                                          |-> sagittal
@@ -33,8 +35,11 @@ viewport.
 - PWA: viewer resources remain available offline after the first visit.
 
 The catalog retains `File` references only in memory and passes only the selected series
-to Cornerstone. It does not persist the catalog or expose patient identity fields in the
-interface. Classification rules and limitations are documented in
+to Cornerstone. Before the streaming volume is created, the selected local datasets are
+parsed into the DICOM Image Loader cache so Cornerstone can query pixel and geometry
+metadata without decoding every frame first. Cancellation and destruction purge that
+cache. It does not persist the catalog or expose patient identity fields in the interface.
+Classification rules and limitations are documented in
 [SERIES_SELECTION.md](SERIES_SELECTION.md).
 
 ## Future distribution

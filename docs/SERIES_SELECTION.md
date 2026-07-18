@@ -25,7 +25,9 @@ shows a localized confirmation instead of leaving a stalled progress dialog.
   visible but is never mixed into the reconstructed volume.
 - **Incompatible:** multiframe data, a modality other than CT, incomplete geometry,
   inconsistent dimensions or spacing, a single image, or an unsupported transfer
-  syntax. The interface explains the reason without attempting pixel decoding.
+  syntax. Single-frame volumes above the current 256 Mi-voxel safety limit are also
+  blocked before decoding to avoid exhausting browser and GPU memory. The interface
+  explains the reason without attempting pixel decoding.
 - **Ignored:** DICOMDIR, small or hidden auxiliary files, objects without pixel data,
   non-DICOM files, and objects missing the required UIDs. The interface shows counts
   and reasons, but not file names.

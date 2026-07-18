@@ -57,6 +57,7 @@ repository or public issues. See [SECURITY.md](SECURITY.md).
 - [Architecture](docs/ARCHITECTURE.md)
 - [Study and series selection](docs/SERIES_SELECTION.md)
 - [CBCT compatibility testing](docs/COMPATIBILITY_TESTING.md)
+- [Preliminary compatibility results](docs/COMPATIBILITY_RESULTS.md)
 - [Clinical and technical roadmap](docs/ROADMAP.md)
 - [Open-core product model](docs/PRODUCT.md)
 - [Contributing](CONTRIBUTING.md)

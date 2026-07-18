@@ -19,8 +19,9 @@
 - Add dental presets, linear/angular measurements, and screenshot export.
 - Implement curved planar reformation and cross-sectional views of the dental arch.
 - Test CBCT studies from multiple manufacturers and publish a DICOM conformance statement.
-- Loading and indexing cancellation plus staged progress are available. Memory limits
-  and standardized local performance measurements remain pending.
+- Loading and indexing cancellation, staged progress, and an initial 256 Mi-voxel
+  safety limit are available. Adaptive memory limits and standardized local performance
+  measurements remain pending.
 
 ## Phase 2 — distribution
 

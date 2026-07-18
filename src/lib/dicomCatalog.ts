@@ -3,6 +3,7 @@ import { translate, type Language, type MessageDescriptor, type TranslationKey }
 import { isPotentialDicom } from './files';
 
 const MAX_HEADER_BYTES = 4 * 1024 * 1024;
+export const MAX_VOLUME_VOXELS = 256 * 1024 * 1024;
 
 const SUPPORTED_TRANSFER_SYNTAXES = new Set([
   '1.2.840.10008.1.2',
@@ -211,6 +212,16 @@ function classify(items: IndexedDicomFile[]): { kind: SeriesKind; reason?: Messa
   }
   if (items.some((item) => item.imageOrientation?.some((value, index) => !nearlyEqual(value, first.imageOrientation?.[index])))) {
     return { kind: 'incompatible', reason: { key: 'inconsistentOrientationReason' } };
+  }
+  const voxelCount = items.reduce(
+    (sum, item) => sum + (item.rows ?? 0) * (item.columns ?? 0) * item.numberOfFrames,
+    0,
+  );
+  if (voxelCount > MAX_VOLUME_VOXELS) {
+    return {
+      kind: 'incompatible',
+      reason: { key: 'volumeTooLargeReason', values: { voxels: Math.round(voxelCount / 1_000_000) } },
+    };
   }
   return { kind: 'volume' };
 }

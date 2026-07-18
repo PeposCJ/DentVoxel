@@ -40,6 +40,34 @@ let activeVolumeId: string | undefined;
 let activeVolumeCancel: (() => void) | undefined;
 let activeAbortSignal: AbortSignal | undefined;
 
+async function prepareLocalMetadata(
+  imageIds: string[],
+  onProgress: (progress: VolumeLoadProgress) => void,
+  throwIfCancelled: () => void,
+): Promise<void> {
+  let nextIndex = 0;
+  let completed = 0;
+  const worker = async () => {
+    while (nextIndex < imageIds.length) {
+      const imageId = imageIds[nextIndex];
+      nextIndex += 1;
+      throwIfCancelled();
+      const parsed = wadouri.parseImageId(imageId);
+      await wadouri.dataSetCacheManager.load(parsed.url, wadouri.loadFileRequest, imageId);
+      completed += 1;
+      onProgress({
+        stage: 'registering',
+        percent: 8 + Math.round((completed / imageIds.length) * 14),
+        current: completed,
+        total: imageIds.length,
+      });
+    }
+  };
+
+  await Promise.all(Array.from({ length: Math.min(4, imageIds.length) }, worker));
+  throwIfCancelled();
+}
+
 export async function initializeImaging(): Promise<void> {
   if (initialized) return;
   await initCore();
@@ -100,7 +128,8 @@ export async function loadDicomStudy(
   }
 
   const imageIds = candidates.map((file) => wadouri.fileManager.add(file));
-  onProgress({ stage: 'registering', percent: 12, current: imageIds.length, total: imageIds.length });
+  onProgress({ stage: 'registering', percent: 8, current: 0, total: imageIds.length });
+  await prepareLocalMetadata(imageIds, onProgress, throwIfCancelled);
 
   engine = new RenderingEngine(ENGINE_ID);
   engine.setViewports([
@@ -198,7 +227,10 @@ export function destroyStudy(): void {
   ToolGroupManager.destroyToolGroup(TOOL_GROUP_ID);
   engine?.destroy();
   engine = undefined;
-  if (activeVolumeId) cache.removeVolumeLoadObject(activeVolumeId);
+  if (activeVolumeId && cache.getVolumeLoadObject(activeVolumeId)) {
+    cache.removeVolumeLoadObject(activeVolumeId);
+  }
   activeVolumeId = undefined;
+  wadouri.dataSetCacheManager.purge();
   wadouri.fileManager.purge();
 }

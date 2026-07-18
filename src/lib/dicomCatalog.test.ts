@@ -88,6 +88,16 @@ describe('buildDicomCatalog', () => {
     });
   });
 
+  it('blocks volumes above the current safe voxel limit before pixel decoding', () => {
+    const series = buildDicomCatalog([
+      record({ instanceNumber: 1, rows: 16384, columns: 16384 }),
+      record({ instanceNumber: 2, rows: 16384, columns: 16384 }),
+    ], new Map(), 2).studies[0].series[0];
+
+    expect(series.kind).toBe('incompatible');
+    expect(localize('en', series.reason)).toContain('safe local limit');
+  });
+
   it('keeps different studies separate even when they share a description', () => {
     const records = [
       record({ instanceNumber: 1 }),

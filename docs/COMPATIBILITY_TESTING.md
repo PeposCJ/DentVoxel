@@ -29,7 +29,7 @@ These are test targets, not current compatibility claims.
 
 | Export family | Minimum cases | Public status |
 | --- | ---: | --- |
-| Carestream Dental | 2 | Not yet independently validated |
+| Carestream Dental | 2 | Preliminary local results; not yet independently validated |
 | Dentsply Sirona | 2 | Not yet independently validated |
 | Planmeca | 2 | Not yet independently validated |
 | Vatech | 2 | Not yet independently validated |
@@ -94,3 +94,6 @@ transfer syntax.
 Automated repository tests use only synthetic metadata records. Real compatibility
 results require the manual protocol because pixel decoding, geometry, and manufacturer
 export behavior cannot be validated from fabricated headers alone.
+
+See [Preliminary compatibility results](COMPATIBILITY_RESULTS.md) for aggregate findings
+that have passed this privacy review.
