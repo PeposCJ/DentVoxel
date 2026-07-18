@@ -1,0 +1,39 @@
+{
+  "name": "dentvoxel",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Open-source, private and local-first dental CBCT/DICOM viewer.",
+  "license": "MPL-2.0",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@cornerstonejs/core": "^4.17.2",
+    "@cornerstonejs/dicom-image-loader": "^4.17.2",
+    "@cornerstonejs/tools": "^4.17.2",
+    "@originjs/vite-plugin-commonjs": "^1.0.3",
+    "comlink": "^4.4.2",
+    "dicom-parser": "^1.8.21",
+    "lucide-react": "^0.468.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "workbox-window": "^7.4.1"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.1.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "jsdom": "^25.0.1",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.3",
+    "vite-plugin-pwa": "^0.21.1",
+    "vitest": "^2.1.8"
+  }
+}

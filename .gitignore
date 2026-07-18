@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.preview*.log
+*.tsbuildinfo
+.pnpm-store/
+.DS_Store
+Thumbs.db
+*.dcm
+DICOMDIR
+studies/
