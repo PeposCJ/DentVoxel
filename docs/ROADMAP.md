@@ -16,6 +16,10 @@
   functional version is complete; validation with anonymized real-world studies and
   DICOMDIR support remain pending.
 - Read DICOMDIR and multiframe objects and report unsupported transfer syntaxes clearly.
+- Support recursive drag-and-drop import from a containing folder or local ZIP archive,
+  discovering DICOM objects inside nested directories without requiring the user to find
+  the exact series folder. ZIP extraction must remain on-device and enforce archive-size,
+  decompression-ratio, nesting, file-count, and path-traversal safety limits.
 - Add dental presets, linear/angular measurements, and screenshot export.
 - Implement curved planar reformation and cross-sectional views of the dental arch.
 - Test CBCT studies from multiple manufacturers and publish a DICOM conformance statement.
