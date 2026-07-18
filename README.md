@@ -18,6 +18,8 @@ vendor-neutral alternative to the large viewers distributed with individual scan
 - Synchronized axial, coronal, and sagittal MPR views.
 - Crosshair translation and rotation for oblique slices.
 - Window/level, pan, zoom, slice scrolling, and camera reset.
+- Editable linear measurements in physical millimetres.
+- Resizable view panels with minimize, restore, and automatic space allocation.
 - 3D volume rendering with a bone preset.
 - Web Worker decoding with WebAssembly codecs.
 - Installable PWA that remains available offline after its first load.
@@ -56,6 +58,7 @@ repository or public issues. See [SECURITY.md](SECURITY.md).
 
 - [Architecture](docs/ARCHITECTURE.md)
 - [Study and series selection](docs/SERIES_SELECTION.md)
+- [Configurable viewing workspace](docs/VIEW_WORKSPACE.md)
 - [CBCT compatibility testing](docs/COMPATIBILITY_TESTING.md)
 - [Preliminary compatibility results](docs/COMPATIBILITY_RESULTS.md)
 - [Clinical and technical roadmap](docs/ROADMAP.md)
