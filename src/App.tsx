@@ -12,6 +12,7 @@ import {
   Languages,
   Layers3,
   Maximize,
+  Minimize2,
   RotateCcw,
   ShieldCheck,
   X,
@@ -32,6 +33,7 @@ import {
   type DicomCatalog,
   type DicomSeries,
 } from './lib/dicomCatalog';
+import { getDeviceMemoryGiB, planVolumeLoad } from './lib/volumePolicy';
 import { localize, translate, type Language, type TranslationKey, type TranslationValues } from './i18n';
 
 type Status = 'empty' | 'indexing' | 'selecting' | 'loading' | 'ready' | 'error';
@@ -51,14 +53,16 @@ function ToolButton({ active, disabled, label, onClick, children }: { active?: b
   );
 }
 
-function SeriesCard({ language, series, t, onOpen }: { language: Language; series: DicomSeries; t: (key: TranslationKey, values?: TranslationValues) => string; onOpen: () => void }) {
+function SeriesCard({ deviceMemoryGiB, language, series, t, onOpen }: { deviceMemoryGiB: number; language: Language; series: DicomSeries; t: (key: TranslationKey, values?: TranslationValues) => string; onOpen: (decimation: number) => void }) {
   const compatible = series.kind === 'volume';
+  const loadPlan = planVolumeLoad(series.dimensions, deviceMemoryGiB);
+  const reduced = compatible && loadPlan.decimation > 1;
   const dimensions = series.dimensions.map((value) => value ?? '—').join(' × ');
   const spacing = series.voxelSpacing.map(formatSpacing).join(' × ');
 
   return (
-    <button className={`series-card series-${series.kind}`} disabled={!compatible} onClick={onOpen}>
-      <span className="series-icon">{compatible ? <Layers3 /> : series.kind === 'localizer' ? <Box /> : <AlertTriangle />}</span>
+    <button className={`series-card series-${series.kind} ${reduced ? 'series-preview' : ''}`} disabled={!compatible} onClick={() => onOpen(loadPlan.decimation)}>
+      <span className="series-icon">{reduced ? <Minimize2 /> : compatible ? <Layers3 /> : series.kind === 'localizer' ? <Box /> : <AlertTriangle />}</span>
       <span className="series-main">
         <span className="series-heading"><strong>{series.description || t('untitledSeries')}</strong><i>{series.modality}</i></span>
         <span className="series-metrics">
@@ -66,10 +70,11 @@ function SeriesCard({ language, series, t, onOpen }: { language: Language; serie
           <span><b>{t('pixels', { value: dimensions })}</b></span>
           <span><b>{t('millimeters', { value: spacing })}</b></span>
         </span>
+        {reduced && <span className="preview-reason">{t('reducedPreviewReason', { factor: loadPlan.decimation, voxels: Math.round(loadPlan.previewVoxels / 1_000_000) })}</span>}
         {!compatible && <span className="series-reason">{localize(language, series.reason)}</span>}
       </span>
-      <span className={`series-status ${compatible ? 'compatible' : ''}`}>
-        {compatible ? <><CheckCircle2 /> {t('open')}</> : series.kind === 'localizer' ? t('localizer') : t('incompatible')}
+      <span className={`series-status ${compatible ? 'compatible' : ''} ${reduced ? 'preview' : ''}`}>
+        {reduced ? <><Minimize2 /> {t('openReducedPreview')}</> : compatible ? <><CheckCircle2 /> {t('open')}</> : series.kind === 'localizer' ? t('localizer') : t('incompatible')}
       </span>
     </button>
   );
@@ -88,7 +93,8 @@ export default function App() {
   const [noticeKey, setNoticeKey] = useState<TranslationKey | ''>('');
   const [catalog, setCatalog] = useState<DicomCatalog | null>(null);
   const [selectedStudyId, setSelectedStudyId] = useState('');
-  const [study, setStudy] = useState({ description: '', series: '', images: 0 });
+  const [study, setStudy] = useState({ description: '', series: '', images: 0, previewFactor: 1 });
+  const deviceMemoryGiB = useMemo(getDeviceMemoryGiB, []);
 
   const t = useCallback(
     (key: TranslationKey, values?: TranslationValues) => translate(language, key, values),
@@ -148,14 +154,16 @@ export default function App() {
     }
   }, [language, t]);
 
-  const loadSeries = useCallback(async (series: DicomSeries) => {
+  const loadSeries = useCallback(async (series: DicomSeries, decimation: number) => {
     if (!selectedStudy || series.kind !== 'volume') return;
     operationRef.current?.abort();
     const controller = new AbortController();
     operationRef.current = controller;
     setStatus('loading');
     setProgress(2);
-    setProgressDetail(t('selectedSlices', { count: series.imageCount }));
+    setProgressDetail(decimation > 1
+      ? t('selectedReducedPreview', { count: series.imageCount, factor: decimation })
+      : t('selectedSlices', { count: series.imageCount }));
     setError('');
     setNoticeKey('');
 
@@ -177,9 +185,9 @@ export default function App() {
         setProgressDetail(update.stage === 'decoding' && update.total
           ? t('decodingPixelsProgress', { current: update.current ?? 0, total: update.total })
           : t(progressKey));
-      }, controller.signal, language);
+      }, controller.signal, language, decimation);
       if (controller.signal.aborted) return;
-      setStudy({ description: selectedStudy.description, series: series.description, images: series.imageCount });
+      setStudy({ description: selectedStudy.description, series: series.description, images: series.imageCount, previewFactor: decimation });
       setStatus('ready');
       setActiveTool('Crosshairs');
     } catch (reason) {
@@ -213,7 +221,7 @@ export default function App() {
       <header className="topbar">
         <div className="brand"><span className="brand-mark"><Crosshair size={18} /></span><strong>Dent<span>Voxel</span></strong><small>CBCT</small></div>
         <div className="study-title">
-          {status === 'ready' ? <><strong>{study.description || t('untitledStudy')} · {study.series || t('untitledSeries')}</strong><span>{t('localProcessing', { count: study.images })}</span></> : <><strong>{t('localViewer')}</strong><span>{t('studiesStayLocal')}</span></>}
+          {status === 'ready' ? <><strong>{study.description || t('untitledStudy')} · {study.series || t('untitledSeries')}</strong><span>{study.previewFactor > 1 ? t('reducedPreviewActive', { factor: study.previewFactor }) : t('localProcessing', { count: study.images })}</span></> : <><strong>{t('localViewer')}</strong><span>{t('studiesStayLocal')}</span></>}
         </div>
         <div className="privacy-pill"><ShieldCheck size={15} /> {t('privateNoCloud')}</div>
         <div className="language-switch" role="group" aria-label={t('language')}><Languages /><button className={language === 'en' ? 'active' : ''} onClick={() => setLanguage('en')} aria-label={t('english')}>EN</button><button className={language === 'es' ? 'active' : ''} onClick={() => setLanguage('es')} aria-label={t('spanish')}>ES</button></div>
@@ -247,6 +255,7 @@ export default function App() {
           <article className={`viewport viewport-${id}`} key={id}>
             <div className="viewport-canvas" ref={(node) => { viewportRefs.current[id] = node; }} />
             <div className="viewport-label" style={{ color: viewLabels[id].color }}><i style={{ background: viewLabels[id].color }} />{t(viewLabels[id].labelKey)}</div>
+            {status === 'ready' && study.previewFactor > 1 && <div className="preview-badge"><Minimize2 /> {t('reducedPreviewBadge', { factor: study.previewFactor })}</div>}
             {status !== 'ready' && <div className="scan-placeholder"><div className={id === 'volume3d' ? 'skull volume' : `skull ${id}`}><span /></div></div>}
           </article>
         ))}
@@ -308,7 +317,7 @@ export default function App() {
             {noticeKey && <div className="selector-notice"><Info />{t(noticeKey)}</div>}
             {error && <div className="selector-error"><AlertTriangle />{error}</div>}
             <div className="series-list">
-              {selectedStudy.series.map((series) => <SeriesCard key={series.id} language={language} series={series} t={t} onOpen={() => void loadSeries(series)} />)}
+              {selectedStudy.series.map((series) => <SeriesCard key={series.id} deviceMemoryGiB={deviceMemoryGiB} language={language} series={series} t={t} onOpen={(decimation) => void loadSeries(series, decimation)} />)}
             </div>
             {catalog.issues.length > 0 && (
               <details className="scan-issues"><summary>{t('separatedFiles', { count: catalog.issues.reduce((sum, issue) => sum + issue.count, 0) })}</summary>
@@ -321,7 +330,7 @@ export default function App() {
 
       <footer className="statusbar">
         <span className="status-ready"><i /> {statusText}</span>
-        <span><Box size={14} /> {t('synchronizedMpr')}</span>
+        <span className={study.previewFactor > 1 && status === 'ready' ? 'preview-status' : ''}><Box size={14} /> {study.previewFactor > 1 && status === 'ready' ? t('reducedPreviewStatus') : t('synchronizedMpr')}</span>
         <span className="status-help">{t('viewerHelp')}</span>
           <span>v0.1.0-alpha</span>
       </footer>

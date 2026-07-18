@@ -29,6 +29,7 @@ viewport.
 - `src/App.tsx`: application experience, language state, loading states, and controls.
 - `src/i18n.ts`: English and Spanish user-facing messages.
 - `src/lib/dicomCatalog.ts`: local header reading, grouping, classification, and safe metadata.
+- `src/lib/volumePolicy.ts`: device-aware voxel budget and deterministic preview factor.
 - `src/lib/cornerstone.ts`: initialization, volume lifecycle, viewports, and tools.
 - Cornerstone3D and VTK.js: physical coordinates, WebGL, MPR, and volume rendering.
 - DICOM Image Loader: DICOM Part 10 parsing, WASM codecs, and worker-based decoding.
@@ -41,6 +42,13 @@ metadata without decoding every frame first. Cancellation and destruction purge 
 cache. It does not persist the catalog or expose patient identity fields in the interface.
 Classification rules and limitations are documented in
 [SERIES_SELECTION.md](SERIES_SELECTION.md).
+
+Large compatible volumes use the same local pipeline with Cornerstone's decimated-volume
+loader. DentVoxel preselects source slices along the stack, requests in-plane reduction
+during worker decoding, and updates physical spacing for the reduced grid. This avoids
+allocating the full-resolution volume merely to create a preview. The policy uses only
+the browser's coarse memory class; it does not fingerprint, persist, or transmit device
+information.
 
 ## Future distribution
 

@@ -25,9 +25,7 @@ shows a localized confirmation instead of leaving a stalled progress dialog.
   visible but is never mixed into the reconstructed volume.
 - **Incompatible:** multiframe data, a modality other than CT, incomplete geometry,
   inconsistent dimensions or spacing, a single image, or an unsupported transfer
-  syntax. Single-frame volumes above the current 256 Mi-voxel safety limit are also
-  blocked before decoding to avoid exhausting browser and GPU memory. The interface
-  explains the reason without attempting pixel decoding.
+  syntax.
 - **Ignored:** DICOMDIR, small or hidden auxiliary files, objects without pixel data,
   non-DICOM files, and objects missing the required UIDs. The interface shows counts
   and reasons, but not file names.
@@ -40,6 +38,21 @@ its UID instead of failing later during volume loading.
 The selector also presents an aggregate classification summary. It reports the number
 of files examined, DICOM objects indexed, usable volume slices, separated files, volume
 series, localizers, and incompatible series. It intentionally does not list filenames.
+
+## Adaptive large-volume previews
+
+Valid single-frame volumes are no longer rejected solely because of their size. Before
+opening a series, DentVoxel derives a local voxel budget from the browser's coarse
+device-memory signal, bounded between conservative minimum and maximum limits. If the
+source exceeds that budget, the selector offers a clearly labelled reduced preview.
+
+Reduction uses powers of two and Cornerstone's native decimated-volume loader. Slices
+are sampled along the stack and pixels are reduced in-plane before the final voxel
+buffer is allocated. Dimensions and spacing are adjusted in all three axes, while the
+original `File` objects remain untouched. Every viewport, the study header, and the
+status bar retain a warning that the displayed volume is not full resolution. This is
+a memory-safety and navigation feature, not a substitute for examining source data at
+full resolution.
 
 ## Metadata and privacy
 

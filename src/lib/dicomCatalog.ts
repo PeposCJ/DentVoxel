@@ -3,7 +3,6 @@ import { translate, type Language, type MessageDescriptor, type TranslationKey }
 import { isPotentialDicom } from './files';
 
 const MAX_HEADER_BYTES = 4 * 1024 * 1024;
-export const MAX_VOLUME_VOXELS = 256 * 1024 * 1024;
 
 const SUPPORTED_TRANSFER_SYNTAXES = new Set([
   '1.2.840.10008.1.2',
@@ -58,6 +57,7 @@ export interface DicomSeries {
   files: File[];
   fileCount: number;
   imageCount: number;
+  voxelCount: number;
   dimensions: [number | undefined, number | undefined, number];
   voxelSpacing: [number | undefined, number | undefined, number | undefined];
 }
@@ -213,16 +213,6 @@ function classify(items: IndexedDicomFile[]): { kind: SeriesKind; reason?: Messa
   if (items.some((item) => item.imageOrientation?.some((value, index) => !nearlyEqual(value, first.imageOrientation?.[index])))) {
     return { kind: 'incompatible', reason: { key: 'inconsistentOrientationReason' } };
   }
-  const voxelCount = items.reduce(
-    (sum, item) => sum + (item.rows ?? 0) * (item.columns ?? 0) * item.numberOfFrames,
-    0,
-  );
-  if (voxelCount > MAX_VOLUME_VOXELS) {
-    return {
-      kind: 'incompatible',
-      reason: { key: 'volumeTooLargeReason', values: { voxels: Math.round(voxelCount / 1_000_000) } },
-    };
-  }
   return { kind: 'volume' };
 }
 
@@ -238,6 +228,7 @@ function buildSeries(studyId: string, seriesId: string, items: IndexedDicomFile[
   const first = sorted[0];
   const zSpacing = median(distances) ?? first.spacingBetweenSlices ?? first.sliceThickness;
   const classification = classify(sorted);
+  const imageCount = sorted.reduce((sum, item) => sum + item.numberOfFrames, 0);
 
   return {
     id: seriesId,
@@ -247,8 +238,9 @@ function buildSeries(studyId: string, seriesId: string, items: IndexedDicomFile[
     ...classification,
     files: sorted.map((item) => item.file),
     fileCount: sorted.length,
-    imageCount: sorted.reduce((sum, item) => sum + item.numberOfFrames, 0),
-    dimensions: [first.columns, first.rows, sorted.reduce((sum, item) => sum + item.numberOfFrames, 0)],
+    imageCount,
+    voxelCount: (first.columns ?? 0) * (first.rows ?? 0) * imageCount,
+    dimensions: [first.columns, first.rows, imageCount],
     voxelSpacing: [first.pixelSpacing?.[1], first.pixelSpacing?.[0], zSpacing],
   };
 }

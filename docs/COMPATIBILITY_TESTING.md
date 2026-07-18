@@ -56,7 +56,8 @@ transfer syntax.
    volume. Confirm that every incompatible series has a specific reason.
 5. Open each compatible volume. Verify axial, coronal, sagittal, and 3D rendering;
    slice order; orientation; dimensions; voxel spacing; crosshairs; window/level; pan;
-   zoom; scrolling; and reset.
+   zoom; scrolling; and reset. For a reduced preview, confirm that the selector, every
+   viewport, study header, and status bar identify it as reduced, and record the factor.
 6. Cancel once during header reading and once during pixel decoding. Confirm that the
    application returns to a usable state and can reopen the folder without a reload.
 7. Repeat the opening after taking the browser offline. Record peak memory and elapsed
