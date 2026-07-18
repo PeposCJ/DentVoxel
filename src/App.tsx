@@ -6,23 +6,30 @@ import {
   CheckCircle2,
   Contrast,
   Crosshair,
+  Eye,
+  EyeOff,
   FolderOpen,
   Hand,
   Info,
   Languages,
+  LayoutGrid,
   Layers3,
   Maximize,
   Minimize2,
   RotateCcw,
+  Ruler,
   ShieldCheck,
+  Trash2,
   X,
   ZoomIn,
 } from 'lucide-react';
 import {
   activateTool,
+  deleteSelectedMeasurements,
   destroyStudy,
   loadDicomStudy,
   resetCameras,
+  resizeViewports,
   type ToolName,
   VIEWPORT_IDS,
 } from './lib/cornerstone';
@@ -34,9 +41,11 @@ import {
   type DicomSeries,
 } from './lib/dicomCatalog';
 import { getDeviceMemoryGiB, planVolumeLoad } from './lib/volumePolicy';
+import { chooseManualViewGrid, chooseViewGrid, clampSplit } from './lib/viewLayout';
 import { localize, translate, type Language, type TranslationKey, type TranslationValues } from './i18n';
 
 type Status = 'empty' | 'indexing' | 'selecting' | 'loading' | 'ready' | 'error';
+type ViewportId = (typeof VIEWPORT_IDS)[number];
 
 const viewLabels = {
   axial: { labelKey: 'axial', color: '#53d4ff' },
@@ -83,6 +92,7 @@ function SeriesCard({ deviceMemoryGiB, language, series, t, onOpen }: { deviceMe
 export default function App() {
   const inputRef = useRef<HTMLInputElement>(null);
   const viewportRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const viewerGridRef = useRef<HTMLElement | null>(null);
   const operationRef = useRef<AbortController | null>(null);
   const [language, setLanguage] = useState<Language>(() => localStorage.getItem('dentvoxel-language') === 'es' ? 'es' : 'en');
   const [status, setStatus] = useState<Status>('empty');
@@ -94,6 +104,12 @@ export default function App() {
   const [catalog, setCatalog] = useState<DicomCatalog | null>(null);
   const [selectedStudyId, setSelectedStudyId] = useState('');
   const [study, setStudy] = useState({ description: '', series: '', images: 0, previewFactor: 1 });
+  const [hiddenViews, setHiddenViews] = useState<Set<ViewportId>>(() => new Set());
+  const [gridSize, setGridSize] = useState({ width: 1, height: 1 });
+  const [columnSplit, setColumnSplit] = useState(50);
+  const [rowSplit, setRowSplit] = useState(50);
+  const [autoLayout, setAutoLayout] = useState(false);
+  const [viewSelectorOpen, setViewSelectorOpen] = useState(false);
   const deviceMemoryGiB = useMemo(getDeviceMemoryGiB, []);
 
   const t = useCallback(
@@ -111,10 +127,84 @@ export default function App() {
     destroyStudy();
   }, []);
 
+  useEffect(() => {
+    const deleteMeasurement = (event: KeyboardEvent) => {
+      if (status !== 'ready' || (event.key !== 'Delete' && event.key !== 'Backspace')) return;
+      const target = event.target;
+      if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) return;
+      if (deleteSelectedMeasurements()) event.preventDefault();
+    };
+    window.addEventListener('keydown', deleteMeasurement);
+    return () => window.removeEventListener('keydown', deleteMeasurement);
+  }, [status]);
+
+  useEffect(() => {
+    const element = viewerGridRef.current;
+    if (!element) return;
+    const observer = new ResizeObserver(([entry]) => {
+      setGridSize({ width: entry.contentRect.width, height: entry.contentRect.height });
+      requestAnimationFrame(resizeViewports);
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(resizeViewports);
+    return () => cancelAnimationFrame(frame);
+  }, [hiddenViews, columnSplit, rowSplit]);
+
   const selectedStudy = useMemo(
     () => catalog?.studies.find((item) => item.id === selectedStudyId) ?? catalog?.studies[0],
     [catalog, selectedStudyId],
   );
+  const visibleViews = useMemo(
+    () => VIEWPORT_IDS.filter((id) => !hiddenViews.has(id)),
+    [hiddenViews],
+  );
+  const viewGrid = useMemo(
+    () => autoLayout
+      ? chooseViewGrid(visibleViews.length, gridSize.width, gridSize.height)
+      : chooseManualViewGrid(visibleViews.length),
+    [autoLayout, gridSize, visibleViews.length],
+  );
+
+  const minimizeView = (id: ViewportId) => {
+    if (visibleViews.length <= 1) return;
+    setHiddenViews((current) => new Set(current).add(id));
+  };
+
+  const restoreView = (id: ViewportId) => {
+    setHiddenViews((current) => {
+      const next = new Set(current);
+      next.delete(id);
+      return next;
+    });
+  };
+
+  const toggleView = (id: ViewportId) => {
+    if (hiddenViews.has(id)) restoreView(id);
+    else minimizeView(id);
+  };
+
+  const toggleAutomaticLayout = () => {
+    setAutoLayout((active) => {
+      if (!active) {
+        setColumnSplit(50);
+        setRowSplit(50);
+      }
+      return !active;
+    });
+  };
+
+  const resizeGrid = (axis: 'column' | 'row', event: React.PointerEvent<HTMLDivElement>) => {
+    if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
+    const bounds = viewerGridRef.current?.getBoundingClientRect();
+    if (!bounds) return;
+    setAutoLayout(false);
+    if (axis === 'column') setColumnSplit(clampSplit(((event.clientX - bounds.left) / bounds.width) * 100));
+    else setRowSplit(clampSplit(((event.clientY - bounds.top) / bounds.height) * 100));
+  };
 
   const openFiles = useCallback(async (list: FileList | File[]) => {
     const files = Array.from(list);
@@ -245,20 +335,52 @@ export default function App() {
         <ToolButton label={t('windowLevel')} disabled={status !== 'ready'} active={activeTool === 'WindowLevel'} onClick={() => selectTool('WindowLevel')}><Contrast /></ToolButton>
         <ToolButton label={t('pan')} disabled={status !== 'ready'} active={activeTool === 'Pan'} onClick={() => selectTool('Pan')}><Hand /></ToolButton>
         <ToolButton label={t('zoom')} disabled={status !== 'ready'} active={activeTool === 'Zoom'} onClick={() => selectTool('Zoom')}><ZoomIn /></ToolButton>
+        <ToolButton label={t('length')} disabled={status !== 'ready'} active={activeTool === 'Length'} onClick={() => selectTool('Length')}><Ruler /></ToolButton>
+        <ToolButton label={t('deleteMeasurement')} disabled={status !== 'ready'} onClick={deleteSelectedMeasurements}><Trash2 /></ToolButton>
         <div className="tool-divider" />
+        <ToolButton label={t('autoLayout')} disabled={status !== 'ready'} active={autoLayout} onClick={toggleAutomaticLayout}><LayoutGrid /></ToolButton>
         <ToolButton label={t('reset')} disabled={status !== 'ready'} onClick={resetCameras}><RotateCcw /></ToolButton>
         <ToolButton label={t('fullscreen')} onClick={() => document.documentElement.requestFullscreen?.()}><Maximize /></ToolButton>
       </aside>
 
-      <section className="viewer-grid">
+      <section
+        className="viewer-grid"
+        ref={viewerGridRef}
+        style={{
+          gridTemplateColumns: viewGrid.columns === 1 ? '1fr' : viewGrid.columns === 2 ? `minmax(0, ${columnSplit}fr) minmax(0, ${100 - columnSplit}fr)` : `repeat(${viewGrid.columns}, minmax(0, 1fr))`,
+          gridTemplateRows: viewGrid.rows === 1 ? '1fr' : `minmax(0, ${rowSplit}fr) minmax(0, ${100 - rowSplit}fr)`,
+        }}
+      >
         {VIEWPORT_IDS.map((id) => (
-          <article className={`viewport viewport-${id}`} key={id}>
+          <article
+            className={`viewport viewport-${id} ${hiddenViews.has(id) ? 'viewport-hidden' : ''}`}
+            key={id}
+            style={viewGrid.expandLast && visibleViews.at(-1) === id ? { gridColumn: '1 / -1' } : undefined}
+          >
             <div className="viewport-canvas" ref={(node) => { viewportRefs.current[id] = node; }} />
             <div className="viewport-label" style={{ color: viewLabels[id].color }}><i style={{ background: viewLabels[id].color }} />{t(viewLabels[id].labelKey)}</div>
+            {status === 'ready' && <button className="viewport-minimize" disabled={visibleViews.length <= 1} onClick={() => minimizeView(id)} aria-label={t('minimizeView', { view: t(viewLabels[id].labelKey) })} title={t('minimizeView', { view: t(viewLabels[id].labelKey) })}><Minimize2 /></button>}
             {status === 'ready' && study.previewFactor > 1 && <div className="preview-badge"><Minimize2 /> {t('reducedPreviewBadge', { factor: study.previewFactor })}</div>}
             {status !== 'ready' && <div className="scan-placeholder"><div className={id === 'volume3d' ? 'skull volume' : `skull ${id}`}><span /></div></div>}
           </article>
         ))}
+
+        {status === 'ready' && viewGrid.columns === 2 && visibleViews.length > 1 && <div className="grid-divider grid-divider-column" style={{ left: `${columnSplit}%`, bottom: viewGrid.expandLast ? `${100 - rowSplit}%` : 0 }} role="separator" aria-label={t('resizeColumns')} aria-orientation="vertical" onPointerDown={(event) => event.currentTarget.setPointerCapture(event.pointerId)} onPointerMove={(event) => resizeGrid('column', event)} />}
+        {status === 'ready' && viewGrid.rows === 2 && visibleViews.length > 2 && <div className="grid-divider grid-divider-row" style={{ top: `${rowSplit}%` }} role="separator" aria-label={t('resizeRows')} aria-orientation="horizontal" onPointerDown={(event) => event.currentTarget.setPointerCapture(event.pointerId)} onPointerMove={(event) => resizeGrid('row', event)} />}
+        {status === 'ready' && <div className="view-selector">
+          <button className="view-selector-trigger" onClick={() => setViewSelectorOpen((open) => !open)} aria-expanded={viewSelectorOpen} aria-haspopup="menu"><LayoutGrid /> {t('views')}</button>
+          {viewSelectorOpen && <div className="view-selector-menu" role="menu" aria-label={t('selectViews')}>
+            <strong>{t('selectViews')}</strong>
+            {VIEWPORT_IDS.map((id) => {
+              const visible = !hiddenViews.has(id);
+              return <button key={id} role="menuitemcheckbox" aria-checked={visible} disabled={visible && visibleViews.length <= 1} onClick={() => toggleView(id)}>
+                {visible ? <Eye /> : <EyeOff />}
+                <span>{t(viewLabels[id].labelKey)}</span>
+                <small>{t(visible ? 'viewOpen' : 'viewClosed')}</small>
+              </button>;
+            })}
+          </div>}
+        </div>}
 
         {(status === 'empty' || status === 'error') && (
           <div className="welcome-card">
@@ -331,7 +453,7 @@ export default function App() {
       <footer className="statusbar">
         <span className="status-ready"><i /> {statusText}</span>
         <span className={study.previewFactor > 1 && status === 'ready' ? 'preview-status' : ''}><Box size={14} /> {study.previewFactor > 1 && status === 'ready' ? t('reducedPreviewStatus') : t('synchronizedMpr')}</span>
-        <span className="status-help">{t('viewerHelp')}</span>
+        <span className={`status-help ${activeTool === 'Length' && status === 'ready' ? 'measurement-help' : ''}`}>{activeTool === 'Length' && status === 'ready' ? t('measurementHelp') : t('viewerHelp')}</span>
           <span>v0.1.0-alpha</span>
       </footer>
     </main>

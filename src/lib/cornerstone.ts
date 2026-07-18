@@ -14,6 +14,8 @@ import {
   CrosshairsTool,
   Enums as ToolEnums,
   init as initTools,
+  LengthTool,
+  annotation,
   PanTool,
   StackScrollTool,
   ToolGroupManager,
@@ -23,7 +25,7 @@ import {
 import { translate, type Language } from '../i18n';
 import { isPotentialDicom } from './files';
 
-export type ToolName = 'Crosshairs' | 'WindowLevel' | 'Pan' | 'Zoom';
+export type ToolName = 'Crosshairs' | 'WindowLevel' | 'Pan' | 'Zoom' | 'Length';
 
 export interface VolumeLoadProgress {
   stage: 'initializing' | 'registering' | 'building' | 'decoding' | 'rendering';
@@ -81,7 +83,7 @@ export async function initializeImaging(): Promise<void> {
     'cornerstoneDecimatedVolume',
     decimatedVolumeLoader as unknown as Parameters<typeof volumeLoader.registerVolumeLoader>[1],
   );
-  [CrosshairsTool, WindowLevelTool, PanTool, ZoomTool, StackScrollTool].forEach(addTool);
+  [CrosshairsTool, WindowLevelTool, PanTool, ZoomTool, LengthTool, StackScrollTool].forEach(addTool);
   initialized = true;
 }
 
@@ -100,6 +102,7 @@ function configureTools(language: Language) {
   group.addTool(WindowLevelTool.toolName);
   group.addTool(PanTool.toolName);
   group.addTool(ZoomTool.toolName);
+  group.addTool(LengthTool.toolName);
   group.addTool(StackScrollTool.toolName);
 
   MPR_IDS.forEach((id) => group.addViewport(id, ENGINE_ID));
@@ -255,19 +258,41 @@ export async function loadDicomStudy(
 export function activateTool(tool: ToolName): void {
   const group = ToolGroupManager.getToolGroup(TOOL_GROUP_ID);
   if (!group) return;
-  [CrosshairsTool, WindowLevelTool, PanTool, ZoomTool].forEach((candidate) =>
+  [CrosshairsTool, WindowLevelTool, PanTool, ZoomTool, LengthTool].forEach((candidate) =>
     group.setToolPassive(candidate.toolName),
   );
   const name =
     tool === 'Crosshairs' ? CrosshairsTool.toolName :
     tool === 'WindowLevel' ? WindowLevelTool.toolName :
-    tool === 'Pan' ? PanTool.toolName : ZoomTool.toolName;
+    tool === 'Pan' ? PanTool.toolName :
+    tool === 'Zoom' ? ZoomTool.toolName : LengthTool.toolName;
   group.setToolActive(name, { bindings: [{ mouseButton: ToolEnums.MouseBindings.Primary }] });
+}
+
+export function deleteSelectedMeasurements(): number {
+  const selected = annotation.selection.getAnnotationsSelectedByToolName(LengthTool.toolName);
+  selected.forEach((annotationUID) => annotation.state.removeAnnotation(annotationUID));
+  if (selected.length) engine?.render();
+  return selected.length;
+}
+
+function clearMeasurements(): void {
+  annotation.state.getAllAnnotations().forEach((item) => {
+    if (item.metadata?.toolName === LengthTool.toolName && item.annotationUID) {
+      annotation.state.removeAnnotation(item.annotationUID);
+    }
+  });
 }
 
 export function resetCameras(): void {
   if (!engine) return;
   VIEWPORT_IDS.forEach((id) => engine?.getViewport(id)?.resetCamera());
+  engine.render();
+}
+
+export function resizeViewports(): void {
+  if (!engine) return;
+  engine.resize(true, true);
   engine.render();
 }
 
@@ -278,6 +303,7 @@ export function destroyStudy(): void {
   }
   activeVolumeCancel = undefined;
   activeAbortSignal = undefined;
+  clearMeasurements();
   ToolGroupManager.destroyToolGroup(TOOL_GROUP_ID);
   engine?.destroy();
   engine = undefined;
